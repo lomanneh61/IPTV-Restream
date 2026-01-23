@@ -1,3 +1,4 @@
+
 const express = require('express');
 const dotenv = require('dotenv');
 const { Server } = require('socket.io');
@@ -15,6 +16,9 @@ const streamController = require('./services/restream/StreamController');
 const ChannelService = require('./services/ChannelService');
 const PlaylistUpdater = require('./services/PlaylistUpdater');
 
+// ✅ ADD THIS:
+const epgRoutes = require('./routes/epgRoutes');
+
 dotenv.config();
 
 const app = express();
@@ -31,11 +35,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// ✅ MOUNT EPG ROUTES HERE (before app.listen):
+app.use('/api/epg', epgRoutes);
+
 // Auth routes
 const authRouter = express.Router();
 authRouter.post('/admin-login', authController.adminLogin);
 authRouter.get('/admin-status', authController.checkAdminStatus);
-
 app.use('/api/auth', authRouter);
 
 // Channel routes
@@ -58,7 +64,6 @@ proxyRouter.get('/key', proxyController.key);
 proxyRouter.get('/current', centralChannelController.currentChannel);
 app.use('/proxy', proxyRouter);
 
-
 const PORT = 5000;
 const server = app.listen(PORT, async () => {
   console.log(`Server listening on Port ${PORT}`);
@@ -70,36 +75,34 @@ const server = app.listen(PORT, async () => {
   PlaylistUpdater.registerChannelsPlaylist(ChannelService.getChannels());
 });
 
-
 // Web Sockets with explicit CORS configuration
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow any origin in development
+    origin: "*",
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type"],
     credentials: true,
   },
 });
 
-// Add JWT authentication middleware to socket.io
 io.use(socketAuthMiddleware);
 
 const connectedUsers = {};
-
 io.on('connection', socket => {
   console.log('New client connected');
 
   socket.on('new-user', userId => {
     connectedUsers[socket.id] = userId;
     socket.broadcast.emit('user-connected', userId);
-  })
+  });
 
   socket.on('disconnect', () => {
     socket.broadcast.emit('user-disconnected', connectedUsers[socket.id]);
     delete connectedUsers[socket.id];
-  })
+  });
 
   ChannelSocketHandler(io, socket);
   PlaylistSocketHandler(io, socket);
   ChatSocketHandler(io, socket);
-})
+});
+``
