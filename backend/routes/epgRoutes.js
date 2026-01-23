@@ -1,50 +1,39 @@
 
+// backend/routes/epgRoutes.js
+const express = require("express");
+const router = express.Router();
+
+const ChannelService = require("../services/ChannelService");
+const { loadXmltv } = require("../services/epgService");
+const { mapEpgToChannels } = require("../services/epgMappingService");
 const { getPlaylistIndexes, normKey } = require("../services/playlistMetaService");
 
+// Your helper (enrichChannelsWithTvg) goes here...
 async function enrichChannelsWithTvg(channels) {
   const byPlaylist = new Map();
-
   for (const ch of channels) {
-    if (!ch?.playlist) continue;
+    if (!ch.playlist) continue;
     if (!byPlaylist.has(ch.playlist)) byPlaylist.set(ch.playlist, []);
     byPlaylist.get(ch.playlist).push(ch);
   }
 
   for (const [playlistUrl, list] of byPlaylist.entries()) {
-    let indexes;
-
-    try {
-      indexes = await getPlaylistIndexes(playlistUrl);
-    } catch (err) {
-      console.error(`[EPG] Failed to load playlist: ${playlistUrl}`, err?.message || err);
-      continue; // don't break all channels if one playlist fails
-    }
-
-    const { mapByUrl, mapByName } = indexes;
+    const { mapByUrl, mapByName } = await getPlaylistIndexes(playlistUrl);
 
     for (const ch of list) {
-      if (!ch || ch.tvgId) continue;
+      if (ch.tvgId) continue;
 
-      const chUrlKey = ch.url ? normKey(ch.url) : "";
-      const chNameKey = ch.name ? normKey(ch.name) : "";
-
-      // 1) Match by stream URL (best)
-      if (chUrlKey) {
-        const byUrl = mapByUrl.get(chUrlKey);
-        if (byUrl?.tvgId) {
-          ch.tvgId = byUrl.tvgId;
-          if (!ch.avatar && byUrl.tvgLogo) ch.avatar = byUrl.tvgLogo;
-          continue;
-        }
+      const byUrl = mapByUrl.get(normKey(ch.url));
+      if (byUrl?.tvgId) {
+        ch.tvgId = byUrl.tvgId;
+        if (!ch.avatar && byUrl.tvgLogo) ch.avatar = byUrl.tvgLogo;
+        continue;
       }
 
-      // 2) Fallback by name
-      if (chNameKey) {
-        const byName = mapByName.get(chNameKey);
-        if (byName?.tvgId) {
-          ch.tvgId = byName.tvgId;
-          if (!ch.avatar && byName.tvgLogo) ch.avatar = byName.tvgLogo;
-        }
+      const byName = mapByName.get(normKey(ch.name));
+      if (byName?.tvgId) {
+        ch.tvgId = byName.tvgId;
+        if (!ch.avatar && byName.tvgLogo) ch.avatar = byName.tvgLogo;
       }
     }
   }
@@ -52,4 +41,42 @@ async function enrichChannelsWithTvg(channels) {
   return channels;
 }
 
-module.exports = { enrichChannelsWithTvg };
+/**
+ * ✅ THIS is the /api/epg route handler:
+ * Because server.js mounts this router at app.use("/api/epg", epgRoutes)
+ * and this handler is router.get("/")
+ */
+router.get("/", async (req, res) => {
+  try {
+    const url = process.env.EPG_URL;
+    if (!url) return res.status(400).json({ error: "EPG_URL is not set" });
+
+    const hours = Number(req.query.hours || 24);
+
+    // 1) Load and parse the XMLTV EPG
+    const { tv, meta } = await loadXmltv(url);
+
+    // 2) Get channels from the app
+    let channels = ChannelService.getChannels();
+
+    // 3) Enrich channels with tvgId from playlist
+    channels = await enrichChannelsWithTvg(channels);
+
+    // 4) Map EPG -> channels
+    const { mapped, unmatched } = mapEpgToChannels({ channels, tv, hours });
+
+    // 5) Return combined JSON
+    res.json({
+      meta: { ...meta, rangeHours: hours },
+      channels: mapped,
+      unmatched,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "Failed to load/map EPG",
+      details: String(err?.message || err),
+    });
+  }
+});
+
+module.exports = router;
