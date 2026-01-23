@@ -1,14 +1,18 @@
-const axios = require("axios");
-const xml2js = require("xml2js");
 
-async function loadEPG(epgUrl) {
-  const xml = (await axios.get(epgUrl)).data;
-  const parsed = await xml2js.parseStringPromise(xml);
+// backend/services/epgService.js
+async function loadEPG(url) {
+  if (!url) throw new Error("EPG_URL is missing");
 
-  return {
-    channels: parsed.tv.channel,
-    programs: parsed.tv.programme
-  };
+  const res = await fetch(url, {
+    headers: { "User-Agent": "IPTV-Restream" },
+  });
+
+  if (!res.ok) {
+    throw new Error(`EPG fetch failed: ${res.status} ${res.statusText}`);
+  }
+
+  const xml = await res.text();
+  return { xml }; // return raw XML (or parse later)
 }
 
 module.exports = { loadEPG };
