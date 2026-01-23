@@ -1,42 +1,80 @@
-
 const axios = require("axios");
+const { XMLParser } = require("fast-xml-parser");
 
-/**
- * Load EPG XML from a URL (XMLTV).
- * @param {string} url - EPG URL (e.g. http://.../epg.xml or epg.xml.gz)
- * @returns {Promise<{url: string, xml: string, fetchedAt: string}>}
- */
-async function loadEPG(url) {
-  if (!url) {
-    throw new Error("EPG_URL is missing (process.env.EPG_URL is undefined)");
-  }
+// Cache to avoid re-downloading a big EPG on every click
+const cache = {
+  url: null,
+  fetchedAt: 0,
+  parsed: null, // parsed XMLTV JSON
+};
 
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: "@_",
+  // XMLTV often contains HTML-ish descriptions; keep text as-is
+  trimValues: true,
+});
+
+async function fetchAndParseXmltv(url) {
   const res = await axios.get(url, {
-    // Avoid hanging forever
-    timeout: 20000, // 20 seconds
-
-    // We want the raw XML as text (not JSON)
+    timeout: 30000,
     responseType: "text",
-
-    // Allow big EPG files
     maxContentLength: Infinity,
     maxBodyLength: Infinity,
-
-    // Helpful headers
     headers: {
       "User-Agent": "IPTV-Restream",
       "Accept": "application/xml,text/xml,*/*",
     },
-
-    // Only treat 2xx as success
-    validateStatus: (status) => status >= 200 && status < 300,
+    validateStatus: (s) => s >= 200 && s < 300,
   });
 
+  // Parse XML -> JS object
+  const parsed = parser.parse(res.data);
+
+  // XMLTV root is usually <tv>
+  if (!parsed || !parsed.tv) {
+    throw new Error("Invalid XMLTV: missing <tv> root");
+  }
+
+  return parsed.tv;
+}
+
+async function loadXmltv(url) {
+  if (!url) throw new Error("EPG_URL is missing");
+
+  const now = Date.now();
+  const cacheValid =
+    cache.parsed &&
+    cache.url === url &&
+    now - cache.fetchedAt < CACHE_TTL_MS;
+
+  if (cacheValid) {
+    return {
+      tv: cache.parsed,
+      meta: {
+        sourceUrl: url,
+        fetchedAt: new Date(cache.fetchedAt).toISOString(),
+        cached: true,
+      },
+    };
+  }
+
+  const tv = await fetchAndParseXmltv(url);
+
+  cache.url = url;
+  cache.fetchedAt = now;
+  cache.parsed = tv;
+
   return {
-    url,
-    xml: res.data,
-    fetchedAt: new Date().toISOString(),
+    tv,
+    meta: {
+      sourceUrl: url,
+      fetchedAt: new Date(now).toISOString(),
+      cached: false,
+    },
   };
 }
 
-module.exports = { loadEPG };
+module.exports = { loadXmltv };
