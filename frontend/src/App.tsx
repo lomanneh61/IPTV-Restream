@@ -363,11 +363,14 @@ const canSelectChannel = () => {
                onChannelSelectCheckPermission={canSelectChannel}
               />
         
-              
-
             </div>
 
-            <VideoPlayer channel={selectedChannel} syncEnabled={syncEnabled} />
+            
+             <VideoPlayer
+               channel={selectedChannel}
+               syncEnabled={syncEnabled}
+               onChannelSelectCheckPermission={canSelectChannel}
+               />
           </div>
 
           <div className="col-span-12 lg:col-span-4">
