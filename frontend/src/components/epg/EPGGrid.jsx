@@ -1,12 +1,25 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getEPG } from "../../services/epg";
 import EPGChannelList from "./EPGChannelList";
 import EPGTimeline from "./EPGTimeline";
 
+// Build the same time slots used in timeline
+function buildTimeSlots() {
+  const startTime = new Date();
+  startTime.setMinutes(0, 0, 0);
+
+  return Array.from({ length: 6 }).map((_, i) => {
+    const t = new Date(startTime.getTime() + i * 30 * 60000);
+    return t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  });
+}
+
 export default function EPGGrid() {
   const [epg, setEpg] = useState(null);
   const [error, setError] = useState(null);
+
+  const timeSlots = useMemo(() => buildTimeSlots(), []);
 
   useEffect(() => {
     let mounted = true;
@@ -40,30 +53,36 @@ export default function EPGGrid() {
     <div className="h-full bg-black text-white rounded-xl shadow-lg overflow-hidden">
       {/* ✅ ONE scroll container controls vertical + horizontal */}
       <div className="h-full overflow-y-auto overflow-x-auto">
-        {/* Sticky header row */}
+        {/* ✅ Sticky header row */}
         <div className="sticky top-0 z-50">
-          {/* Wrap header in a 2-col grid so left cell can be sticky */}
           <div className="grid grid-cols-[14rem_1fr] bg-neutral-900 border-b border-neutral-800">
             {/* ✅ Sticky left header cell */}
-            <div className="sticky left-0 z-50 bg-neutral-900 border-r border-neutral-800 py-2 px-3 text-sm text-gray-300">
+            <div className="sticky left-0 z-50 w-[14rem] bg-neutral-900 border-r border-neutral-800 py-2 px-3 text-sm text-gray-300 overflow-x-hidden">
               Channels
             </div>
 
-            {/* Right header row (from your component) */}
-            <div className="min-w-max">
-              <EPGTimeline.Header />
+            {/* ✅ Right header row (scrolls horizontally) */}
+            <div className="flex min-w-max">
+              {timeSlots.map((t) => (
+                <div
+                  key={t}
+                  className="w-48 text-center py-2 text-gray-300 text-sm border-r border-neutral-800"
+                >
+                  {t}
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Grid body */}
+        {/* ✅ Grid body */}
         <div className="grid grid-cols-[14rem_1fr]">
-          {/* ✅ Sticky left column: does NOT move horizontally */}
-          <div className="sticky left-0 z-40 bg-neutral-900">
+          {/* ✅ Sticky left column: never moves horizontally */}
+          <div className="sticky left-0 z-40 w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
             <EPGChannelList channels={epgChannels} />
           </div>
 
-          {/* Timeline column: horizontally scrollable content */}
+          {/* ✅ Timeline column: horizontally scrollable content */}
           <div className="min-w-max">
             <EPGTimeline channels={epgChannels} />
           </div>
