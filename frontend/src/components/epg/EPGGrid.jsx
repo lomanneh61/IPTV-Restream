@@ -184,7 +184,7 @@ export default function EPGGrid({
 
             <div
               ref={bottomXRef}
-              className="overflow-x-auto overflow-y-hidden"
+              className="overflow-x-auto overflow-y-hidden scroll-container"
               onScroll={(e) => syncX("bottom", e.currentTarget.scrollLeft)}
             >
               {/* Ghost spacer auto-sized to timeline content width */}
