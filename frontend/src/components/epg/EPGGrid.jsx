@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getEPG } from "../../services/epg";
 import EPGChannelList from "./EPGChannelList";
 import EPGTimeline from "./EPGTimeline";
@@ -15,18 +15,16 @@ function buildTimeSlots() {
 }
 
 export default function EPGGrid({
-  // ✅ NEW: current playing channel id from App/VideoPlayer
   currentChannelId = null,
-
-  // Optional callbacks you already added earlier
   onChannelSelected = () => {},
   onChannelSelectCheckPermission = undefined,
 } = {}) {
   const [epg, setEpg] = useState(null);
   const [error, setError] = useState(null);
-
-  // ✅ Local selection for UI highlight + prevent re-select
   const [selectedChannelId, setSelectedChannelId] = useState(null);
+
+  // ✅ separate horizontal scroller for header+timeline
+  const xScrollRef = useRef(null);
 
   const timeSlots = useMemo(() => buildTimeSlots(), []);
 
@@ -41,8 +39,6 @@ export default function EPGGrid({
 
         setEpg(data);
 
-        // ✅ Initial selection:
-        // prefer currentChannelId if available, else first matched, else first
         const list = data?.channels || [];
         const preferred =
           (currentChannelId != null && list.find((c) => c.channelId === currentChannelId)) ||
@@ -59,14 +55,12 @@ export default function EPGGrid({
     return () => {
       mounted = false;
     };
-    // ⚠️ Only fetch once at mount
+    // fetch once
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Sync selection whenever the actual playing channel changes
   useEffect(() => {
     if (!epg?.channels || currentChannelId == null) return;
-
     const exists = epg.channels.some((c) => c.channelId === currentChannelId);
     if (exists) setSelectedChannelId(currentChannelId);
   }, [currentChannelId, epg]);
@@ -81,48 +75,56 @@ export default function EPGGrid({
 
   return (
     <div className="h-full bg-black text-white rounded-xl shadow-lg overflow-hidden">
-      {/* ✅ ONE scroll container controls vertical + horizontal */}
-      <div className="h-full overflow-y-auto overflow-x-auto">
-        {/* ✅ Sticky header row */}
-        <div className="sticky top-0 z-50">
-          <div className="grid grid-cols-[14rem_1fr] bg-neutral-900 border-b border-neutral-800">
-            {/* ✅ Sticky left header cell */}
-            <div className="sticky left-0 z-50 w-[14rem] bg-neutral-900 border-r border-neutral-800 py-2 px-3 text-sm text-gray-300 overflow-x-hidden">
+      {/* ✅ ONE vertical scroll container (no horizontal scroll here) */}
+      <div className="h-full overflow-y-auto overflow-x-hidden">
+        {/* Header row (not horizontally scrollable as a whole) */}
+        <div className="sticky top-0 z-50 bg-neutral-900 border-b border-neutral-800">
+          <div className="grid grid-cols-[14rem_1fr]">
+            {/* Left header: fixed, never scrolls horizontally */}
+            <div className="w-[14rem] border-r border-neutral-800 py-2 px-3 text-sm text-gray-300 overflow-x-hidden">
               Channels
             </div>
 
-            {/* ✅ Right header row */}
-            <div className="flex min-w-max">
-              {timeSlots.map((t) => (
-                <div
-                  key={t}
-                  className="w-48 text-center py-2 text-gray-300 text-sm border-r border-neutral-800"
-                >
-                  {t}
-                </div>
-              ))}
+            {/* Right header: scrolls horizontally WITH the timeline */}
+            <div ref={xScrollRef} className="overflow-x-auto overflow-y-hidden">
+              <div className="flex min-w-max">
+                {timeSlots.map((t) => (
+                  <div
+                    key={t}
+                    className="w-48 text-center py-2 text-gray-300 text-sm border-r border-neutral-800"
+                  >
+                    {t}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ✅ Grid body */}
+        {/* Body */}
         <div className="grid grid-cols-[14rem_1fr]">
-          {/* ✅ Sticky left column */}
-          <div className="sticky left-0 z-40 w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
+          {/* Left column: fixed width, NEVER horizontal scroll */}
+          <div className="w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
             <EPGChannelList
               channels={epgChannels}
-              selectedChannelId={selectedChannelId}          // ✅ NEW
+              selectedChannelId={selectedChannelId}
               onChannelSelected={onChannelSelected}
               onChannelSelectCheckPermission={onChannelSelectCheckPermission}
             />
           </div>
 
-          {/* ✅ Timeline column */}
-          <div className="min-w-max epg-grid-lines">
-            <EPGTimeline
-              channels={epgChannels}
-              selectedChannelId={selectedChannelId}          // optional highlight usage
-            />
+          {/* Right column: horizontal scroll ONLY here */}
+          <div
+            className="overflow-x-auto overflow-y-hidden"
+            // keep header + timeline horizontally aligned by sharing scroll position
+            onScroll={(e) => {
+              if (!xScrollRef.current) return;
+              xScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+            }}
+          >
+            <div className="min-w-max epg-grid-lines">
+              <EPGTimeline channels={epgChannels} selectedChannelId={selectedChannelId} />
+            </div>
           </div>
         </div>
       </div>
