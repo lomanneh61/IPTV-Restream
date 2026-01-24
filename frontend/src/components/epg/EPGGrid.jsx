@@ -38,7 +38,7 @@ export default function EPGGrid({
 
   const [xWidth, setXWidth] = useState(minTimelinePx);
 
-  // ✅ NEW: measure bottom scroller viewport width so we can force overflow
+  // Measure bottom scroller viewport width so we can force overflow
   const [bottomClientWidth, setBottomClientWidth] = useState(0);
 
   const syncingRef = useRef(false);
@@ -122,7 +122,7 @@ export default function EPGGrid({
     };
   }, [epg, minTimelinePx]);
 
-  // ✅ NEW: measure the bottom scroller viewport width so scrollbar always shows
+  // Measure the bottom scroller viewport width so scrollbar always shows
   useEffect(() => {
     const el = bottomXRef.current;
     if (!el) return;
@@ -149,7 +149,7 @@ export default function EPGGrid({
     return <div className="text-gray-400 p-4">EPG loaded but returned 0 channels.</div>;
   }
 
-  // ✅ Force bottom bar to always overflow at least by 1px
+  // Force bottom bar to always overflow at least by 1px
   const ghostWidth = Math.max(xWidth, bottomClientWidth + 1);
 
   return (
@@ -221,11 +221,11 @@ export default function EPGGrid({
             <div className="px-2 py-2">
               <div
                 ref={bottomXRef}
-                className="overflow-x-auto overflow-y-hidden scroll-container epg-bottom-scroll"
+                className="h-10 overflow-x-auto overflow-y-hidden scroll-container epg-bottom-scroll"
                 onScroll={(e) => syncX("bottom", e.currentTarget.scrollLeft)}
               >
-                {/* ✅ Ghost spacer: always wider than viewport so scrollbar is visible */}
-                <div className="h-4" style={{ width: ghostWidth }} />
+                {/* Ghost spacer: always wider than viewport so scrollbar is visible */}
+                <div style={{ width: ghostWidth, height: 1 }} />
               </div>
             </div>
           </div>
