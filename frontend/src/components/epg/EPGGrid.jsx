@@ -182,18 +182,18 @@ export default function EPGGrid({
           <div className="grid grid-cols-[14rem_1fr]">
             <div className="w-[14rem] border-r border-neutral-800" />
 
-            <div
-              ref={bottomXRef}
-              className="overflow-x-auto overflow-y-hidden scroll-container"
-              onScroll={(e) => syncX("bottom", e.currentTarget.scrollLeft)}
-            >
-              {/* Ghost spacer auto-sized to timeline content width */}
-              <div
-                className="h-4"
-                style={{ width: Math.max(0, timelineWidth) }}
-              />
-            </div>
-          </div>
+
+<div className="px-2 py-2">
+  <div
+    ref={bottomXRef}
+    className="overflow-x-auto overflow-y-hidden scroll-container epg-bottom-scroll"
+    onScroll={(e) => syncX("bottom", e.currentTarget.scrollLeft)}
+  >
+    {/* “ghost” spacer: width auto-matches the timeline */}
+    <div className="h-4" style={{ width: Math.max(0, timelineWidth) }} />
+  </div>
+</div>
+
         </div>
       </div>
     </div>
