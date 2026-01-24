@@ -11,19 +11,19 @@ function buildTimeSlots() {
   });
 }
 
-// ✅ Export a sticky header component
+// ✅ Sticky header component
 function Header() {
   const timeSlots = buildTimeSlots();
 
   return (
-    <div className="sticky top-0 z-20 bg-neutral-900 border-b border-neutral-800 grid grid-cols-[14rem_1fr]">
-      {/* Left header cell */}
+    <div className="sticky top-0 z-40 bg-neutral-900 border-b border-neutral-800 grid grid-cols-[14rem_1fr]">
+      {/* Left header cell (will be made sticky in EPGGrid wrapper) */}
       <div className="border-r border-neutral-800 py-2 px-3 text-sm text-gray-300">
         Channels
       </div>
 
       {/* Right header row */}
-      <div className="flex">
+      <div className="flex min-w-max">
         {timeSlots.map((t) => (
           <div
             key={t}
@@ -39,6 +39,7 @@ function Header() {
 
 export default function EPGTimeline({ channels }) {
   return (
+    // ✅ min-w-max ensures timeline can exceed container width (horizontal scroll)
     <div className="min-w-max">
       {channels.map((ch) => {
         const programs = [
@@ -73,3 +74,4 @@ export default function EPGTimeline({ channels }) {
 // attach Header as a static property for convenience
 EPGTimeline.Header = Header;
 EPGTimeline.Header.displayName = "EPGTimelineHeader";
+
