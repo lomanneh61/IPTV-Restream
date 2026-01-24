@@ -122,7 +122,7 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
   };
 
   return (
-    // ✅ Stack vertically so drawer is UNDER the video, never overlay
+    // ✅ Stack vertically so drawer is UNDER the video (never overlays)
     <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col">
       {/* Video */}
       <video
@@ -176,8 +176,13 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
             </button>
           </div>
 
-          {/* ✅ Responsive height: 50vh, capped at 520px */}
-          <div className="h-[50vh] max-h-[520px] min-h-[260px] p-3 overflow-hidden">
+          {/* ✅ Optional responsive sizing + keep drawer from creating extra scrollbars
+              - max-h-[50vh] adapts to screen
+              - h-[45vh] gives a little breathing room on small screens
+              - min-h ensures it’s usable on short viewports
+              - overflow-hidden lets EPGGrid control vertical/horizontal scroll internally
+          */}
+          <div className="h-[45vh] max-h-[50vh] min-h-[260px] p-3 overflow-hidden">
             <EPGGrid />
           </div>
         </div>
