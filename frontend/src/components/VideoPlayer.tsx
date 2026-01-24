@@ -9,18 +9,18 @@ interface VideoPlayerProps {
   channel: Channel | null;
   syncEnabled: boolean;
 
-  // ✅ NEW: reuse the same permission logic as the main ChannelList
-  onChannelSelectCheckPermission?: () => boolean;
+  // ✅ NEW: current playing channel id (from App.tsx selectedChannel?.id)
+  currentChannelId?: number | null;
 
-  // ✅ NEW: called when permission check fails (e.g., open Admin modal)
-  onPermissionDenied?: () => void;
+  // ✅ Option A: permission function handles opening Admin modal + returns boolean
+  onChannelSelectCheckPermission?: () => boolean;
 }
 
 function VideoPlayer({
   channel,
   syncEnabled,
+  currentChannelId = null,
   onChannelSelectCheckPermission,
-  onPermissionDenied,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -187,15 +187,16 @@ function VideoPlayer({
             </button>
           </div>
 
-          {/* ✅ Responsive sizing and prevent drawer from creating extra scrollbars */}
           <div className="h-[45vh] max-h-[50vh] min-h-[260px] p-3 overflow-hidden">
             <EPGGrid
-              // ✅ Close drawer after selecting a channel from EPG list (optional UX)
+              // ✅ sync highlight with current playing channel
+              currentChannelId={currentChannelId}
+
+              // ✅ Optionally close drawer after selecting from EPG
               onChannelSelected={() => setShowEPG(false)}
-              // ✅ Enforce same permission rules as main ChannelList
+
+              // ✅ Option A permission check (opens admin modal in App.tsx if blocked)
               onChannelSelectCheckPermission={onChannelSelectCheckPermission}
-              // ✅ Trigger admin modal if permission denied
-              onPermissionDenied={onPermissionDenied}
             />
           </div>
         </div>
