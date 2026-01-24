@@ -79,3 +79,33 @@ video::-webkit-media-controls-seek-forward-button {
   background: transparent;
 }
 
+
+/* --------------------------------------------
+   Optional polish: Bottom EPG scrollbar only
+   Uses your .scroll-container theme, but tweaks
+   thickness + spacing for the bottom scrub bar.
+   -------------------------------------------- */
+
+.epg-bottom-scroll {
+  /* reserve a little space so it never looks "gone" */
+  padding-bottom: 2px;
+}
+
+/* Chrome/Edge/Safari */
+.epg-bottom-scroll::-webkit-scrollbar {
+  height: 10px; /* keep your theme height (or set 8px if you prefer) */
+}
+
+.epg-bottom-scroll::-webkit-scrollbar-track {
+  margin-block: 6px;          /* tighter than your global 10px */
+  background-color: #111827;  /* slightly darker track (matches EPG bg) */
+  border-radius: 10px;
+}
+
+/* Firefox */
+.epg-bottom-scroll {
+  scrollbar-width: thin;
+}
+
+
+
