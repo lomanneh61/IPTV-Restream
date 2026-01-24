@@ -27,7 +27,7 @@ export default function EPGTimeline({ channels, selectedChannelId }) {
               <div className="p-3 text-gray-400 flex items-center gap-2">
                 {/* ✅ LIVE badge when selected + no current program + no programs */}
                 {isSelected && !hasNow && (
-                  <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded bg-red-600/20 text-red-300 border border-red-500/30">
+                  <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded bg-blue-600/20 text-blue-300 border border-blue-500/30">
                     LIVE
                   </span>
                 )}
