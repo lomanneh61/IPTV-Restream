@@ -354,22 +354,16 @@ const canSelectChannel = () => {
                 </button>
               </div>
 
-               
+                  
+             <ChannelList
+               channels={filteredChannels}
+               selectedChannel={selectedChannel}
+               setSearchQuery={setSearchQuery}
+               onEditChannel={handleEditChannel}
+               onChannelSelectCheckPermission={canSelectChannel}
+              />
+        
               
-<ChannelList
-  channels={filteredChannels}
-  selectedChannel={selectedChannel}
-  setSearchQuery={setSearchQuery}
-  onEditChannel={handleEditChannel}
-  onChannelSelectCheckPermission={() => {
-    if (isAdminEnabled && channelSelectRequiresAdmin && !isAdmin) {
-      setIsAdminModalOpen(true);
-      return false;
-    }
-    return true;
-  }}
-/>
-
 
             </div>
 
