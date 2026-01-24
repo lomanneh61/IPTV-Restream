@@ -5,26 +5,21 @@ export default function EPGChannelList({
   channels,
   onChannelSelected,
   onChannelSelectCheckPermission,
-  onPermissionDenied,
 }) {
   const handleSelect = (ch, e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const id = ch.channelId; // IMPORTANT: backend epg uses channelId
+    const id = ch.channelId; // backend EPG uses channelId
     if (id === null || id === undefined) return;
 
-    // ✅ Permission check (reuse same rule as main ChannelList)
+    // ✅ Option A: permission check handles opening Admin modal elsewhere
     if (onChannelSelectCheckPermission && !onChannelSelectCheckPermission()) {
-      // ✅ Let parent open Admin modal (or show toast)
       return;
     }
 
-    // ✅ Change currently playing channel
     socketService.setCurrentChannel(id);
-
-    // ✅ Optional: close EPG drawer after selecting
-    onChannelSelected?.();
+    onChannelSelected?.(); // optional: close drawer
   };
 
   return (
@@ -62,3 +57,5 @@ export default function EPGChannelList({
     </div>
   );
 }
+
+
