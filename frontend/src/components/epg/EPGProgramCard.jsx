@@ -1,5 +1,9 @@
 
-export default function EPGProgramCard({ program, showNowBadge = false }) {
+export default function EPGProgramCard({
+  program,
+  showNowBadge = false,
+  showLiveBadge = false,
+}) {
   const title = program?.title || "Untitled";
   const desc = program?.desc || "";
   const start = program?.start ? new Date(program.start) : null;
@@ -16,13 +20,23 @@ export default function EPGProgramCard({ program, showNowBadge = false }) {
         })}`
       : "";
 
+  // Prefer NOW over LIVE if both accidentally set
+  const badge = showNowBadge ? "NOW" : showLiveBadge ? "LIVE" : null;
+
   return (
     <div className="w-48 h-20 p-3 border-r border-neutral-800 hover:bg-neutral-900 transition overflow-hidden">
-      {/* Top row: NOW badge + title */}
+      {/* Top row: badge + title */}
       <div className="flex items-start gap-2">
-        {showNowBadge && (
-          <span className="shrink-0 text-[10px] font-bold tracking-wide px-2 py-0.5 rounded bg-green-600/20 text-green-300 border border-green-500/30">
-            NOW
+        {badge && (
+          <span
+            className={[
+              "shrink-0 text-[10px] font-bold tracking-wide px-2 py-0.5 rounded border",
+              badge === "NOW"
+                ? "bg-green-600/20 text-green-300 border-green-500/30"
+                : "bg-red-600/20 text-red-300 border-red-500/30",
+            ].join(" ")}
+          >
+            {badge}
           </span>
         )}
 
@@ -34,3 +48,4 @@ export default function EPGProgramCard({ program, showNowBadge = false }) {
     </div>
   );
 }
+
