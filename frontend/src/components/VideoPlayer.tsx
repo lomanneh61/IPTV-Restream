@@ -1,5 +1,6 @@
 
-import React, { useContext, useEffect, useRef, useState, useCallback } from "react";
+
+import React, { useContext, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { Channel, ChannelMode } from "../types";
 import { ToastContext } from "./notifications/ToastContext";
@@ -16,19 +17,6 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
   const { addToast, removeToast, clearToasts, editToast } = useContext(ToastContext);
 
   const [showEPG, setShowEPG] = useState(false);
-
-  // ✅ Universal "do not navigate" handler (works for mouse, pointer, keyboard)
-  const blockEvent = useCallback((e: React.SyntheticEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Extra safety: stop native event bubbling too (helps in rare cases)
-    // @ts-ignore
-    if (e.nativeEvent?.stopImmediatePropagation) {
-      // @ts-ignore
-      e.nativeEvent.stopImmediatePropagation();
-    }
-  }, []);
 
   useEffect(() => {
     if (!videoRef.current || !channel?.url) return;
@@ -146,12 +134,7 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         onClick={handleVideoClick}
       />
 
-      {/* Header area - stop bubbling to anything above */}
-      <div
-        className="flex items-center p-4 bg-gray-900 text-white"
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+      <div className="flex items-center p-4 bg-gray-900 text-white">
         <img
           src={channel?.avatar}
           alt={`${channel?.name} avatar`}
@@ -159,21 +142,12 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         />
         <span className="font-medium">{channel?.name}</span>
 
-        {/* ✅ EPG toggle button: blocks navigation at pointer + click + keyboard */}
         <button
           type="button"
-          onPointerDown={blockEvent}
-          onMouseDown={blockEvent}
           onClick={(e) => {
-            blockEvent(e);
+            e.preventDefault();
+            e.stopPropagation();
             setShowEPG((prev) => !prev);
-          }}
-          onKeyDown={(e) => {
-            // Prevent Enter/Space from triggering any default submit/navigation behavior
-            if (e.key === "Enter" || e.key === " ") {
-              blockEvent(e);
-              setShowEPG((prev) => !prev);
-            }
           }}
           className="ml-auto px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white"
         >
@@ -182,26 +156,29 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
       </div>
 
       {showEPG && (
-        <div
-          className="absolute left-0 right-0 bottom-0 h-[38%] bg-gray-950/95 border-t border-gray-700 z-50 overflow-auto"
-          // Prevent clicks inside the drawer from bubbling and triggering any parent navigation
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
+        <div className="absolute left-0 right-0 bottom-0 h-[38%] bg-gray-950/95 border-t border-gray-700 z-50 overflow-auto">
           <div className="sticky top-0 bg-gray-950/95 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
             <div className="font-semibold">EPG</div>
-
-            {/* ✅ Close button hardened the same way */}
             <button
               type="button"
-              onPointerDown={blockEvent}
-              onMouseDown={blockEvent}
               onClick={(e) => {
-                blockEvent(e);
+                e.preventDefault();
+                e.stopPropagation();
                 setShowEPG(false);
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  blockEvent(e);
-                  setShowEPG(false);
-                }
+              className="px-2 py-1 rounded hover:bg-gray-800"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="p-3">
+            <EPGGrid channels={channel ? [channel] : []} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default VideoPlayer;
