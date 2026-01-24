@@ -3,29 +3,25 @@
 @tailwind components;
 @tailwind utilities;
 
-
 .scroll-container::-webkit-scrollbar {
   height: 10px; /* Höhe für horizontale Scrollbar */
   width: 15px;
 }
 
-/* Scrollbar-Thumb (Daumen) */
 .scroll-container::-webkit-scrollbar-thumb {
-  background-color: transparent; /* Transparenter Hintergrund */
-  border: 1.5px solid #3b83f663; /* Blaue Umrandung */
+  background-color: transparent;
+  border: 1.5px solid #3b83f663;
   border-radius: 10px;
-  transition: border-color 0.3s ease; /* Sanfter Übergang für Hover */
+  transition: border-color 0.3s ease;
 }
 
-/* Scrollbar-Thumb Hover */
 .scroll-container::-webkit-scrollbar-thumb:hover {
-  border-color: #2563eb; /* Dunkleres Blau beim Hover */
+  border-color: #2563eb;
 }
 
-/* Scrollbar Track */
 .scroll-container::-webkit-scrollbar-track {
-  background-color: #2d3748; /* Dunkelgrauer Hintergrund */
-  border-radius: 10px; /* Runde Ecken */
+  background-color: #2d3748;
+  border-radius: 10px;
   margin-block: 10px;
 }
 
@@ -39,13 +35,8 @@ video::-webkit-media-controls-seek-forward-button {
   display: none;
 }
 
-/* --------------------------------------------
-   EPG full grid lines:
-   - vertical lines every 12rem (w-48)
-   - horizontal lines every 5rem (h-20)
-   -------------------------------------------- */
+/* EPG full grid lines */
 .epg-grid-lines {
-  /* Vertical lines */
   background-image:
     repeating-linear-gradient(
       to right,
@@ -54,7 +45,6 @@ video::-webkit-media-controls-seek-forward-button {
       rgba(0, 0, 0, 0) 1px,
       rgba(0, 0, 0, 0) 12rem
     ),
-    /* Horizontal lines */
     repeating-linear-gradient(
       to bottom,
       rgba(38, 38, 38, 1) 0px,
@@ -62,12 +52,10 @@ video::-webkit-media-controls-seek-forward-button {
       rgba(0, 0, 0, 0) 1px,
       rgba(0, 0, 0, 0) 5rem
     );
-
   background-repeat: repeat;
 }
 
-
-/* Hide horizontal scrollbar but keep horizontal scrolling functional */
+/* Hide horizontal scrollbar but keep scrolling functional */
 .epg-hide-x-scrollbar::-webkit-scrollbar {
   height: 0px;
 }
@@ -78,39 +66,23 @@ video::-webkit-media-controls-seek-forward-button {
   background: transparent;
 }
 
-
 /* --------------------------------------------
    Optional polish: Bottom EPG scrollbar only
-   Uses your .scroll-container theme, but tweaks
-   thickness + spacing for the bottom scrub bar.
    -------------------------------------------- */
-
 .epg-bottom-scroll {
-  /* reserve a little space so it never looks "gone" */
   padding-bottom: 2px;
 }
 
-/* Chrome/Edge/Safari */
 .epg-bottom-scroll::-webkit-scrollbar {
-  height: 10px; /* keep your theme height (or set 8px if you prefer) */
+  height: 10px;
 }
 
-/* ✅ IMPORTANT FIX:
-   override global track margin-block (10px) which can clip the bottom scrollbar */
 .epg-bottom-scroll::-webkit-scrollbar-track {
-  margin-block: 0px !important;   /* <-- this is the key fix */
-  background-color: #111827;      /* slightly darker track (matches EPG bg) */
+  margin-block: 6px;
+  background-color: #111827;
   border-radius: 10px;
 }
 
-/* ✅ Optional: make the thumb visibly filled (not just outline) */
-.epg-bottom-scroll::-webkit-scrollbar-thumb {
-  background-color: rgba(59, 130, 246, 0.20); /* subtle blue fill */
-  border: 1.5px solid #2563eb;               /* strong blue border */
-  border-radius: 10px;
-}
-
-/* Firefox */
 .epg-bottom-scroll {
   scrollbar-width: thin;
 }
