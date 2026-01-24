@@ -12,11 +12,10 @@ export default function EPGProgramCard({ program }) {
         })}`
       : "";
 
-  return (
-    <div className="w-48 p-3 border-r border-neutral-800 hover:bg-neutral-900 transition">
-      <div className="text-sm font-semibold line-clamp-2">{title}</div>
-      {timeLabel && <div className="text-xs text-gray-400 mt-1">{timeLabel}</div>}
-      {desc && <div className="text-xs text-gray-300 mt-2 line-clamp-3">{desc}</div>}
-    </div>
-  );
+
+return (
+  <div className="w-48 h-20 p-3 border-r border-neutral-800 hover:bg-neutral-900 transition overflow-hidden">
+    ...
+  </div>
+);
 }
