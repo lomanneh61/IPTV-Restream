@@ -68,7 +68,7 @@ video::-webkit-media-controls-seek-forward-button {
 
 /* --------------------------------------------
    Optional polish: Bottom EPG scrollbar only
-   -------------------------------------------- */
+   -------------------------------------------- 
 .epg-bottom-scroll {
   padding-bottom: 2px;
 }
@@ -86,3 +86,4 @@ video::-webkit-media-controls-seek-forward-button {
 .epg-bottom-scroll {
   scrollbar-width: thin;
 }
+*/
