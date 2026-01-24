@@ -25,16 +25,16 @@ export default function EPGGrid({
 
   const timeSlots = useMemo(() => buildTimeSlots(), []);
 
-  // Horizontal scrollers
-  const headerXRef = useRef(null);  // time labels
-  const bodyXRef = useRef(null);    // timeline area
-  const bottomXRef = useRef(null);  // visible scrollbar
+  // Horizontal scrollers:
+  const headerXRef = useRef(null);  // header time labels (hidden scrollbar)
+  const bodyXRef = useRef(null);    // timeline content (hidden scrollbar)
+  const bottomXRef = useRef(null);  // bottom scrollbar (visible)
 
-  // ✅ Measure timeline width
+  // Measure timeline width so bottom scrollbar auto-matches it
   const timelineContentRef = useRef(null);
   const [timelineWidth, setTimelineWidth] = useState(0);
 
-  // prevent scroll ping-pong
+  // Prevent scroll ping-pong when syncing scrollLeft
   const syncingRef = useRef(false);
 
   const syncX = (source, left) => {
@@ -50,6 +50,7 @@ export default function EPGGrid({
     });
   };
 
+  // Fetch EPG once
   useEffect(() => {
     let mounted = true;
 
@@ -61,6 +62,7 @@ export default function EPGGrid({
 
         setEpg(data);
 
+        // Initial selection: prefer current channel, else first matched, else first
         const list = data?.channels || [];
         const preferred =
           (currentChannelId != null && list.find((c) => c.channelId === currentChannelId)) ||
@@ -80,20 +82,20 @@ export default function EPGGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // sync selection with currently playing channel
+  // Keep selection synced with actual playing channel
   useEffect(() => {
     if (!epg?.channels || currentChannelId == null) return;
     const exists = epg.channels.some((c) => c.channelId === currentChannelId);
     if (exists) setSelectedChannelId(currentChannelId);
   }, [currentChannelId, epg]);
 
-  // ✅ Auto-adjust bottom scrollbar width to timeline content using ResizeObserver
+  // Auto-adjust bottom scrollbar width to timeline content width
   useEffect(() => {
     const el = timelineContentRef.current;
     if (!el) return;
 
     const update = () => {
-      // scrollWidth is what we need for horizontal scrolling
+      // scrollWidth gives the full horizontal content width
       setTimelineWidth(el.scrollWidth || el.getBoundingClientRect().width || 0);
     };
 
@@ -102,14 +104,13 @@ export default function EPGGrid({
     const ro = new ResizeObserver(() => update());
     ro.observe(el);
 
-    // Also update after fonts load or async content shifts
     const raf = requestAnimationFrame(update);
 
     return () => {
       ro.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [epg]); // when epg changes, timeline content changes
+  }, [epg]);
 
   if (error) return <div className="text-red-400 p-4">EPG Error: {error}</div>;
   if (!epg) return <div className="text-gray-400 p-4">Loading EPG…</div>;
@@ -121,16 +122,17 @@ export default function EPGGrid({
 
   return (
     <div className="h-full bg-black text-white rounded-xl shadow-lg overflow-hidden">
-      {/* Vertical scroll only */}
+      {/* ✅ Vertical scroll only for whole grid */}
       <div className="h-full overflow-y-auto overflow-x-hidden">
-        {/* Sticky header */}
+        {/* ✅ Sticky header row */}
         <div className="sticky top-0 z-50 bg-neutral-900 border-b border-neutral-800">
           <div className="grid grid-cols-[14rem_1fr]">
+            {/* Left header cell (fixed) */}
             <div className="w-[14rem] border-r border-neutral-800 py-2 px-3 text-sm text-gray-300 overflow-x-hidden">
               Channels
             </div>
 
-            {/* Header time row (hidden scrollbar, synced) */}
+            {/* Header time row: horizontal scroll hidden, synced */}
             <div
               ref={headerXRef}
               className="overflow-x-auto overflow-y-hidden epg-hide-x-scrollbar"
@@ -150,9 +152,9 @@ export default function EPGGrid({
           </div>
         </div>
 
-        {/* Body */}
+        {/* ✅ Body */}
         <div className="grid grid-cols-[14rem_1fr]">
-          {/* Left rail pinned */}
+          {/* Left rail pinned: never scrolls horizontally */}
           <div className="w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
             <EPGChannelList
               channels={epgChannels}
@@ -162,38 +164,38 @@ export default function EPGGrid({
             />
           </div>
 
-          {/* Timeline (hidden scrollbar, synced) */}
+          {/* Timeline: horizontal scroll hidden, synced */}
           <div
             ref={bodyXRef}
             className="overflow-x-auto overflow-y-hidden epg-hide-x-scrollbar"
             onScroll={(e) => syncX("body", e.currentTarget.scrollLeft)}
           >
-            <div
-              ref={timelineContentRef}
-              className="min-w-max epg-grid-lines"
-            >
+            <div ref={timelineContentRef} className="min-w-max epg-grid-lines">
               <EPGTimeline channels={epgChannels} selectedChannelId={selectedChannelId} />
             </div>
           </div>
         </div>
 
-        {/* Bottom scrollbar (VISIBLE, auto width) */}
-        <div className="sticky bottom-0 z-50 bg-black border-t border-neutral-800">
+        {/* ✅ Bottom scrollbar (visible + blue themed + auto-width) */}
+        <div className="sticky bottom-0 z-50 bg-black border-t border-neutral-800 shadow-[0_-6px_16px_rgba(0,0,0,0.55)]">
           <div className="grid grid-cols-[14rem_1fr]">
-            <div className="w-[14rem] border-r border-neutral-800" />
+            {/* Left spacer + label */}
+            <div className="w-[14rem] border-r border-neutral-800 px-3 py-2 text-xs text-gray-400">
+              Timeline
+            </div>
 
-
-<div className="px-2 py-2">
-  <div
-    ref={bottomXRef}
-    className="overflow-x-auto overflow-y-hidden scroll-container epg-bottom-scroll"
-    onScroll={(e) => syncX("bottom", e.currentTarget.scrollLeft)}
-  >
-    {/* “ghost” spacer: width auto-matches the timeline */}
-    <div className="h-4" style={{ width: Math.max(0, timelineWidth) }} />
-  </div>
-</div>
-
+            {/* Bottom scroll area uses your blue scrollbar theme */}
+            <div className="px-2 py-2">
+              <div
+                ref={bottomXRef}
+                className="overflow-x-auto overflow-y-hidden scroll-container epg-bottom-scroll"
+                onScroll={(e) => syncX("bottom", e.currentTarget.scrollLeft)}
+              >
+                {/* Ghost spacer: width auto-matches timeline */}
+                <div className="h-4" style={{ width: Math.max(0, timelineWidth) }} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
