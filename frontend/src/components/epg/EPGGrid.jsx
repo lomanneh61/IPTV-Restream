@@ -15,7 +15,16 @@ function buildTimeSlots() {
   });
 }
 
-export default function EPGGrid() {
+export default function EPGGrid({
+  // ✅ NEW: called after a channel is selected (use this to close the drawer)
+  onChannelSelected = () => {},
+
+  // ✅ NEW: admin permission check (same rule as your main ChannelList)
+  onChannelSelectCheckPermission = undefined,
+
+  // ✅ NEW: what to do when permission is denied (open Admin modal)
+  onPermissionDenied = () => {},
+} = {}) {
   const [epg, setEpg] = useState(null);
   const [error, setError] = useState(null);
 
@@ -79,10 +88,21 @@ export default function EPGGrid() {
         <div className="grid grid-cols-[14rem_1fr]">
           {/* ✅ Sticky left column: never moves horizontally */}
           <div className="sticky left-0 z-40 w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
-            <EPGChannelList channels={epgChannels} />
+            <EPGChannelList
+              channels={epgChannels}
+
+              // ✅ NEW: close drawer after selection (optional UX)
+              onChannelSelected={onChannelSelected}
+
+              // ✅ NEW: enforce admin permission on EPG click
+              onChannelSelectCheckPermission={onChannelSelectCheckPermission}
+
+              // ✅ NEW: open admin modal (or toast) if denied
+              onPermissionDenied={onPermissionDenied}
+            />
           </div>
 
-          {/* ✅ Timeline column: horizontally scrollable content + persistent vertical grid lines */}
+          {/* ✅ Timeline column: horizontally scrollable content + grid lines */}
           <div className="min-w-max epg-grid-lines">
             <EPGTimeline channels={epgChannels} />
           </div>
