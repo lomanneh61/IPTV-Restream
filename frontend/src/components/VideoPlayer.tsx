@@ -8,9 +8,20 @@ import EPGGrid from "./epg/EPGGrid";
 interface VideoPlayerProps {
   channel: Channel | null;
   syncEnabled: boolean;
+
+  // ✅ NEW: reuse the same permission logic as the main ChannelList
+  onChannelSelectCheckPermission?: () => boolean;
+
+  // ✅ NEW: called when permission check fails (e.g., open Admin modal)
+  onPermissionDenied?: () => void;
 }
 
-function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
+function VideoPlayer({
+  channel,
+  syncEnabled,
+  onChannelSelectCheckPermission,
+  onPermissionDenied,
+}: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const { addToast, removeToast, clearToasts, editToast } = useContext(ToastContext);
@@ -176,14 +187,16 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
             </button>
           </div>
 
-          {/* ✅ Optional responsive sizing + keep drawer from creating extra scrollbars
-              - max-h-[50vh] adapts to screen
-              - h-[45vh] gives a little breathing room on small screens
-              - min-h ensures it’s usable on short viewports
-              - overflow-hidden lets EPGGrid control vertical/horizontal scroll internally
-          */}
+          {/* ✅ Responsive sizing and prevent drawer from creating extra scrollbars */}
           <div className="h-[45vh] max-h-[50vh] min-h-[260px] p-3 overflow-hidden">
-            <EPGGrid />
+            <EPGGrid
+              // ✅ Close drawer after selecting a channel from EPG list (optional UX)
+              onChannelSelected={() => setShowEPG(false)}
+              // ✅ Enforce same permission rules as main ChannelList
+              onChannelSelectCheckPermission={onChannelSelectCheckPermission}
+              // ✅ Trigger admin modal if permission denied
+              onPermissionDenied={onPermissionDenied}
+            />
           </div>
         </div>
       )}
