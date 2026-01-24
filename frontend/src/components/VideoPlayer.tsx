@@ -10,12 +10,6 @@ interface VideoPlayerProps {
   syncEnabled: boolean;
 }
 
-
-// ✅ add these
-  onChannelSelectCheckPermission?: () => boolean;
-  onPermissionDenied?: () => void;
-}
-
 function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
