@@ -82,8 +82,8 @@ export default function EPGGrid() {
             <EPGChannelList channels={epgChannels} />
           </div>
 
-          {/* ✅ Timeline column: horizontally scrollable content */}
-          <div className="min-w-max">
+          {/* ✅ Timeline column: horizontally scrollable content + persistent vertical grid lines */}
+          <div className="min-w-max epg-grid-lines">
             <EPGTimeline channels={epgChannels} />
           </div>
         </div>
