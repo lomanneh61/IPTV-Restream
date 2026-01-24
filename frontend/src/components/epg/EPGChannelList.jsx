@@ -17,7 +17,6 @@ export default function EPGChannelList({
     // ✅ Permission check (reuse same rule as main ChannelList)
     if (onChannelSelectCheckPermission && !onChannelSelectCheckPermission()) {
       // ✅ Let parent open Admin modal (or show toast)
-      onPermissionDenied?.();
       return;
     }
 
