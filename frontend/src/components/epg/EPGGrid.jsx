@@ -16,11 +16,7 @@ export default function EPGGrid() {
         setError(null);
         const data = await getEPG(24);
         if (!mounted) return;
-
         setEpg(data);
-
-        // Optional debug:
-        // console.log("EPG matched:", (data.channels || []).filter(c => c.matched).length, "/", (data.channels || []).length);
       } catch (e) {
         if (!mounted) return;
         setError(e?.message || "Failed to load EPG");
@@ -40,15 +36,37 @@ export default function EPGGrid() {
     return <div className="text-gray-400 p-4">EPG loaded but returned 0 channels.</div>;
   }
 
-  // ✅ ONE scroll container for BOTH columns + horizontal timeline scroll
   return (
     <div className="h-full bg-black text-white rounded-xl shadow-lg overflow-hidden">
+      {/* ✅ ONE scroll container controls vertical + horizontal */}
       <div className="h-full overflow-y-auto overflow-x-auto">
-        <EPGTimeline.Header />
+        {/* Sticky header row */}
+        <div className="sticky top-0 z-50">
+          {/* Wrap header in a 2-col grid so left cell can be sticky */}
+          <div className="grid grid-cols-[14rem_1fr] bg-neutral-900 border-b border-neutral-800">
+            {/* ✅ Sticky left header cell */}
+            <div className="sticky left-0 z-50 bg-neutral-900 border-r border-neutral-800 py-2 px-3 text-sm text-gray-300">
+              Channels
+            </div>
 
+            {/* Right header row (from your component) */}
+            <div className="min-w-max">
+              <EPGTimeline.Header />
+            </div>
+          </div>
+        </div>
+
+        {/* Grid body */}
         <div className="grid grid-cols-[14rem_1fr]">
-          <EPGChannelList channels={epgChannels} />
-          <EPGTimeline channels={epgChannels} />
+          {/* ✅ Sticky left column: does NOT move horizontally */}
+          <div className="sticky left-0 z-40 bg-neutral-900">
+            <EPGChannelList channels={epgChannels} />
+          </div>
+
+          {/* Timeline column: horizontally scrollable content */}
+          <div className="min-w-max">
+            <EPGTimeline channels={epgChannels} />
+          </div>
         </div>
       </div>
     </div>
