@@ -23,8 +23,8 @@ export default function EPGGrid({
   const [error, setError] = useState(null);
   const [selectedChannelId, setSelectedChannelId] = useState(null);
 
-  // ✅ separate horizontal scroller for header+timeline
-  const xScrollRef = useRef(null);
+  // ✅ This is the scrollable header (right side only)
+  const headerXRef = useRef(null);
 
   const timeSlots = useMemo(() => buildTimeSlots(), []);
 
@@ -59,6 +59,7 @@ export default function EPGGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ✅ Sync highlight whenever the actual playing channel changes
   useEffect(() => {
     if (!epg?.channels || currentChannelId == null) return;
     const exists = epg.channels.some((c) => c.channelId === currentChannelId);
@@ -75,18 +76,21 @@ export default function EPGGrid({
 
   return (
     <div className="h-full bg-black text-white rounded-xl shadow-lg overflow-hidden">
-      {/* ✅ ONE vertical scroll container (no horizontal scroll here) */}
+      {/* ✅ ONE vertical scroll for the whole grid, NO horizontal scroll here */}
       <div className="h-full overflow-y-auto overflow-x-hidden">
-        {/* Header row (not horizontally scrollable as a whole) */}
+        {/* ✅ Sticky header row */}
         <div className="sticky top-0 z-50 bg-neutral-900 border-b border-neutral-800">
           <div className="grid grid-cols-[14rem_1fr]">
-            {/* Left header: fixed, never scrolls horizontally */}
+            {/* Left header cell (fixed) */}
             <div className="w-[14rem] border-r border-neutral-800 py-2 px-3 text-sm text-gray-300 overflow-x-hidden">
               Channels
             </div>
 
-            {/* Right header: scrolls horizontally WITH the timeline */}
-            <div ref={xScrollRef} className="overflow-x-auto overflow-y-hidden">
+            {/* Right header area: horizontal scroll ONLY here */}
+            <div
+              ref={headerXRef}
+              className="overflow-x-auto overflow-y-hidden"
+            >
               <div className="flex min-w-max">
                 {timeSlots.map((t) => (
                   <div
@@ -101,9 +105,9 @@ export default function EPGGrid({
           </div>
         </div>
 
-        {/* Body */}
+        {/* ✅ Body: left column never horizontal scrolls; right column scrolls horizontally */}
         <div className="grid grid-cols-[14rem_1fr]">
-          {/* Left column: fixed width, NEVER horizontal scroll */}
+          {/* Left rail: pinned, never moves left/right */}
           <div className="w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
             <EPGChannelList
               channels={epgChannels}
@@ -113,13 +117,14 @@ export default function EPGGrid({
             />
           </div>
 
-          {/* Right column: horizontal scroll ONLY here */}
+          {/* Right timeline: horizontal scroll ONLY here */}
           <div
             className="overflow-x-auto overflow-y-hidden"
-            // keep header + timeline horizontally aligned by sharing scroll position
             onScroll={(e) => {
-              if (!xScrollRef.current) return;
-              xScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+              // Keep header aligned with timeline horizontal scroll
+              if (headerXRef.current) {
+                headerXRef.current.scrollLeft = e.currentTarget.scrollLeft;
+              }
             }}
           >
             <div className="min-w-max epg-grid-lines">
