@@ -105,7 +105,7 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         }
       });
 
-      // ... your FRAG_LOADED + ERROR handlers unchanged ...
+      // ... FRAG_LOADED + ERROR handlers unchanged ...
     }
 
     return () => {
@@ -122,7 +122,7 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
   };
 
   return (
-    // ✅ No absolute positioning needed; stack content vertically
+    // ✅ Stack vertically so drawer is UNDER the video, never overlay
     <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col">
       {/* Video */}
       <video
@@ -157,7 +157,7 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         </button>
       </div>
 
-      {/* ✅ Drawer UNDER the player (never overlays the video) */}
+      {/* ✅ Responsive drawer BELOW player */}
       {showEPG && (
         <div className="w-full bg-gray-950/95 border-t border-gray-700">
           <div className="bg-gray-950/95 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
@@ -176,9 +176,8 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
             </button>
           </div>
 
-          {/* Drawer body height (adjust as you like) */}
-          <div className="h-[420px] p-3 overflow-hidden">
-            {/* Full grid (all channels) */}
+          {/* ✅ Responsive height: 50vh, capped at 520px */}
+          <div className="h-[50vh] max-h-[520px] min-h-[260px] p-3 overflow-hidden">
             <EPGGrid />
           </div>
         </div>
