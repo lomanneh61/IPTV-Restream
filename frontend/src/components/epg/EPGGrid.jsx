@@ -4,7 +4,6 @@ import { getEPG } from "../../services/epg";
 import EPGChannelList from "./EPGChannelList";
 import EPGTimeline from "./EPGTimeline";
 
-// Build the same time slots used in timeline
 function buildTimeSlots() {
   const startTime = new Date();
   startTime.setMinutes(0, 0, 0);
@@ -16,17 +15,18 @@ function buildTimeSlots() {
 }
 
 export default function EPGGrid({
-  // ✅ NEW: called after a channel is selected (use this to close the drawer)
+  // ✅ NEW: current playing channel id from App/VideoPlayer
+  currentChannelId = null,
+
+  // Optional callbacks you already added earlier
   onChannelSelected = () => {},
-
-  // ✅ NEW: admin permission check (same rule as your main ChannelList)
   onChannelSelectCheckPermission = undefined,
-
-  // ✅ NEW: what to do when permission is denied (open Admin modal)
-  onPermissionDenied = () => {},
 } = {}) {
   const [epg, setEpg] = useState(null);
   const [error, setError] = useState(null);
+
+  // ✅ Local selection for UI highlight + prevent re-select
+  const [selectedChannelId, setSelectedChannelId] = useState(null);
 
   const timeSlots = useMemo(() => buildTimeSlots(), []);
 
@@ -38,7 +38,18 @@ export default function EPGGrid({
         setError(null);
         const data = await getEPG(24);
         if (!mounted) return;
+
         setEpg(data);
+
+        // ✅ Initial selection:
+        // prefer currentChannelId if available, else first matched, else first
+        const list = data?.channels || [];
+        const preferred =
+          (currentChannelId != null && list.find((c) => c.channelId === currentChannelId)) ||
+          list.find((c) => c.matched) ||
+          list[0];
+
+        setSelectedChannelId(preferred?.channelId ?? null);
       } catch (e) {
         if (!mounted) return;
         setError(e?.message || "Failed to load EPG");
@@ -48,7 +59,17 @@ export default function EPGGrid({
     return () => {
       mounted = false;
     };
+    // ⚠️ Only fetch once at mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ Sync selection whenever the actual playing channel changes
+  useEffect(() => {
+    if (!epg?.channels || currentChannelId == null) return;
+
+    const exists = epg.channels.some((c) => c.channelId === currentChannelId);
+    if (exists) setSelectedChannelId(currentChannelId);
+  }, [currentChannelId, epg]);
 
   if (error) return <div className="text-red-400 p-4">EPG Error: {error}</div>;
   if (!epg) return <div className="text-gray-400 p-4">Loading EPG…</div>;
@@ -70,7 +91,7 @@ export default function EPGGrid({
               Channels
             </div>
 
-            {/* ✅ Right header row (scrolls horizontally) */}
+            {/* ✅ Right header row */}
             <div className="flex min-w-max">
               {timeSlots.map((t) => (
                 <div
@@ -86,25 +107,22 @@ export default function EPGGrid({
 
         {/* ✅ Grid body */}
         <div className="grid grid-cols-[14rem_1fr]">
-          {/* ✅ Sticky left column: never moves horizontally */}
+          {/* ✅ Sticky left column */}
           <div className="sticky left-0 z-40 w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
             <EPGChannelList
               channels={epgChannels}
-
-              // ✅ NEW: close drawer after selection (optional UX)
+              selectedChannelId={selectedChannelId}          // ✅ NEW
               onChannelSelected={onChannelSelected}
-
-              // ✅ NEW: enforce admin permission on EPG click
               onChannelSelectCheckPermission={onChannelSelectCheckPermission}
-
-              // ✅ NEW: open admin modal (or toast) if denied
-              onPermissionDenied={onPermissionDenied}
             />
           </div>
 
-          {/* ✅ Timeline column: horizontally scrollable content + grid lines */}
+          {/* ✅ Timeline column */}
           <div className="min-w-max epg-grid-lines">
-            <EPGTimeline channels={epgChannels} />
+            <EPGTimeline
+              channels={epgChannels}
+              selectedChannelId={selectedChannelId}          // optional highlight usage
+            />
           </div>
         </div>
       </div>
