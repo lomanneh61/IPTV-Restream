@@ -40,15 +40,29 @@ video::-webkit-media-controls-seek-forward-button {
 }
 
 /* --------------------------------------------
-   EPG timeline vertical grid lines (w-48 = 12rem)
-   Keeps vertical grid lines visible when scrolling
+   EPG full grid lines:
+   - vertical lines every 12rem (w-48)
+   - horizontal lines every 5rem (h-20)
    -------------------------------------------- */
 .epg-grid-lines {
-  background-image: repeating-linear-gradient(
-    to right,
-    rgba(38, 38, 38, 1) 0px,      /* line color */
-    rgba(38, 38, 38, 1) 1px,      /* line width */
-    rgba(0, 0, 0, 0) 1px,
-    rgba(0, 0, 0, 0) 12rem        /* spacing matches w-48 */
-  );
+  /* Vertical lines */
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(38, 38, 38, 1) 0px,
+      rgba(38, 38, 38, 1) 1px,
+      rgba(0, 0, 0, 0) 1px,
+      rgba(0, 0, 0, 0) 12rem
+    ),
+    /* Horizontal lines */
+    repeating-linear-gradient(
+      to bottom,
+      rgba(38, 38, 38, 1) 0px,
+      rgba(38, 38, 38, 1) 1px,
+      rgba(0, 0, 0, 0) 1px,
+      rgba(0, 0, 0, 0) 5rem
+    );
+
+  /* Optional: makes both layers blend nicely */
+  background-repeat: repeat;
 }
