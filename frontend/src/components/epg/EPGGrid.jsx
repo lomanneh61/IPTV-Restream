@@ -16,7 +16,11 @@ export default function EPGGrid() {
         setError(null);
         const data = await getEPG(24);
         if (!mounted) return;
+
         setEpg(data);
+
+        // Optional debug:
+        // console.log("EPG matched:", (data.channels || []).filter(c => c.matched).length, "/", (data.channels || []).length);
       } catch (e) {
         if (!mounted) return;
         setError(e?.message || "Failed to load EPG");
@@ -36,14 +40,12 @@ export default function EPGGrid() {
     return <div className="text-gray-400 p-4">EPG loaded but returned 0 channels.</div>;
   }
 
-  // ✅ ONE scroll container for BOTH columns
+  // ✅ ONE scroll container for BOTH columns + horizontal timeline scroll
   return (
     <div className="h-full bg-black text-white rounded-xl shadow-lg overflow-hidden">
       <div className="h-full overflow-y-auto overflow-x-auto">
-        {/* Sticky header row */}
         <EPGTimeline.Header />
 
-        {/* Grid body: two columns, scroll together */}
         <div className="grid grid-cols-[14rem_1fr]">
           <EPGChannelList channels={epgChannels} />
           <EPGTimeline channels={epgChannels} />
@@ -52,4 +54,3 @@ export default function EPGGrid() {
     </div>
   );
 }
-
