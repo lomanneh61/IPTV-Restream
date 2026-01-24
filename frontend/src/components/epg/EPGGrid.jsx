@@ -3,29 +3,26 @@ import { useEffect, useState } from "react";
 import { getEPG } from "../../services/epg";
 import EPGChannelList from "./EPGChannelList";
 import EPGTimeline from "./EPGTimeline";
+import { useSyncedVerticalScroll } from "./useSyncedScroll"; // your hook
 
 export default function EPGGrid() {
   const [epg, setEpg] = useState(null);
   const [error, setError] = useState(null);
   const [selectedChannelId, setSelectedChannelId] = useState(null);
 
+  const { leftRef, rightRef } = useSyncedVerticalScroll();
+
   useEffect(() => {
     let mounted = true;
-
     (async () => {
       try {
         setError(null);
-        const data = await getEPG(24); // hours
+        const data = await getEPG(24);
         if (!mounted) return;
 
         setEpg(data);
-
-        // Pick a sensible default selection
         const first = data?.channels?.find((c) => c.matched) || data?.channels?.[0];
         setSelectedChannelId(first?.channelId ?? null);
-
-        // Debug (remove later)
-        console.log("EPG payload:", data);
       } catch (e) {
         if (!mounted) return;
         setError(e?.message || "Failed to load EPG");
@@ -42,26 +39,24 @@ export default function EPGGrid() {
 
   const epgChannels = epg.channels || [];
 
-  if (!epgChannels.length) {
-    return (
-      <div className="text-gray-400 p-4">
-        EPG loaded, but returned 0 channels. Check backend mapping.
-      </div>
-    );
-  }
-
+  // ✅ EPGGrid wrapper (layout) is here:
   return (
-    <div className="flex h-[600px] bg-black text-white overflow-hidden rounded-xl shadow-lg">
-      <EPGChannelList
-        channels={epgChannels}
-        selectedChannelId={selectedChannelId}
-        onSelectChannel={setSelectedChannelId}
-      />
-      <EPGTimeline
-        channels={epgChannels}
-        selectedChannelId={selectedChannelId}
-      />
+    <div className="flex h-[600px] overflow-hidden bg-black text-white rounded-xl shadow-lg">
+
+      {/* Left scroll container */}
+      <div ref={leftRef} className="w-56 overflow-y-auto overflow-x-hidden bg-neutral-900 border-r border-neutral-800">
+        <EPGChannelList
+          channels={epgChannels}
+          selectedChannelId={selectedChannelId}
+          onSelectChannel={setSelectedChannelId}
+        />
+      </div>
+
+      {/* Right scroll container */}
+      <div ref={rightRef} className="flex-1 overflow-auto relative">
+        <EPGTimeline channels={epgChannels} selectedChannelId={selectedChannelId} />
+      </div>
+
     </div>
   );
 }
-
