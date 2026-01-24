@@ -63,7 +63,6 @@ video::-webkit-media-controls-seek-forward-button {
       rgba(0, 0, 0, 0) 5rem
     );
 
-  /* Optional: makes both layers blend nicely */
   background-repeat: repeat;
 }
 
@@ -96,9 +95,18 @@ video::-webkit-media-controls-seek-forward-button {
   height: 10px; /* keep your theme height (or set 8px if you prefer) */
 }
 
+/* ✅ IMPORTANT FIX:
+   override global track margin-block (10px) which can clip the bottom scrollbar */
 .epg-bottom-scroll::-webkit-scrollbar-track {
-  margin-block: 6px;          /* tighter than your global 10px */
-  background-color: #111827;  /* slightly darker track (matches EPG bg) */
+  margin-block: 0px !important;   /* <-- this is the key fix */
+  background-color: #111827;      /* slightly darker track (matches EPG bg) */
+  border-radius: 10px;
+}
+
+/* ✅ Optional: make the thumb visibly filled (not just outline) */
+.epg-bottom-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(59, 130, 246, 0.20); /* subtle blue fill */
+  border: 1.5px solid #2563eb;               /* strong blue border */
   border-radius: 10px;
 }
 
@@ -106,6 +114,3 @@ video::-webkit-media-controls-seek-forward-button {
 .epg-bottom-scroll {
   scrollbar-width: thin;
 }
-
-
-
