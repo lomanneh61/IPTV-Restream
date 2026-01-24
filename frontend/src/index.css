@@ -66,3 +66,16 @@ video::-webkit-media-controls-seek-forward-button {
   /* Optional: makes both layers blend nicely */
   background-repeat: repeat;
 }
+
+
+/* Hide horizontal scrollbar but keep horizontal scrolling functional */
+.epg-hide-x-scrollbar::-webkit-scrollbar {
+  height: 0px;
+}
+.epg-hide-x-scrollbar {
+  scrollbar-width: none; /* Firefox */
+}
+.epg-hide-x-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
