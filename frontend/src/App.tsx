@@ -369,6 +369,7 @@ const canSelectChannel = () => {
              <VideoPlayer
                channel={selectedChannel}
                syncEnabled={syncEnabled}
+               currentChannelId={selectedChannel?.id ?? null}
                onChannelSelectCheckPermission={canSelectChannel}
                />
           </div>
