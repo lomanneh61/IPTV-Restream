@@ -33,7 +33,7 @@ export default function EPGProgramCard({
               "shrink-0 text-[10px] font-bold tracking-wide px-2 py-0.5 rounded border",
               badge === "NOW"
                 ? "bg-green-600/20 text-green-300 border-green-500/30"
-                : "bg-red-600/20 text-red-300 border-red-500/30",
+                : "bg-blue-600/20 text-blue-300 border-blue-500/30",
             ].join(" ")}
           >
             {badge}
