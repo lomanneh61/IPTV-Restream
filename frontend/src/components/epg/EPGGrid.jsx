@@ -24,21 +24,17 @@ export default function EPGGrid({
   const [selectedChannelId, setSelectedChannelId] = useState(null);
 
   const timeSlots = useMemo(() => buildTimeSlots(), []);
-  const slotPx = 48 * 4; // w-48 = 12rem = 192px (12 * 16)
+  const slotPx = 48 * 4; // w-48 = 12rem = 192px
   const minTimelinePx = timeSlots.length * slotPx;
 
-  // Horizontal scrollers
   const headerXRef = useRef(null);
   const bodyXRef = useRef(null);
   const bottomXRef = useRef(null);
 
-  // Measure widths
   const headerContentRef = useRef(null);
   const timelineContentRef = useRef(null);
 
   const [xWidth, setXWidth] = useState(minTimelinePx);
-
-  // Measure bottom scroller viewport width so we can force overflow
   const [bottomClientWidth, setBottomClientWidth] = useState(0);
 
   const syncingRef = useRef(false);
@@ -56,7 +52,6 @@ export default function EPGGrid({
     });
   };
 
-  // Fetch EPG once
   useEffect(() => {
     let mounted = true;
 
@@ -87,14 +82,12 @@ export default function EPGGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync highlight with actual playing channel
   useEffect(() => {
     if (!epg?.channels || currentChannelId == null) return;
     const exists = epg.channels.some((c) => c.channelId === currentChannelId);
     if (exists) setSelectedChannelId(currentChannelId);
   }, [currentChannelId, epg]);
 
-  // Auto-adjust timeline width: max(header time width, timeline body width, minTimelinePx)
   useEffect(() => {
     const headerEl = headerContentRef.current;
     const timelineEl = timelineContentRef.current;
@@ -122,7 +115,6 @@ export default function EPGGrid({
     };
   }, [epg, minTimelinePx]);
 
-  // Measure the bottom scroller viewport width so scrollbar always shows
   useEffect(() => {
     const el = bottomXRef.current;
     if (!el) return;
@@ -149,21 +141,17 @@ export default function EPGGrid({
     return <div className="text-gray-400 p-4">EPG loaded but returned 0 channels.</div>;
   }
 
-  // Force bottom bar to always overflow at least by 1px
   const ghostWidth = Math.max(xWidth, bottomClientWidth + 1);
 
   return (
     <div className="h-full bg-black text-white rounded-xl shadow-lg overflow-hidden">
-      {/* Vertical scroll only */}
       <div className="h-full overflow-y-auto overflow-x-hidden">
-        {/* Sticky header */}
         <div className="sticky top-0 z-50 bg-neutral-900 border-b border-neutral-800">
           <div className="grid grid-cols-[14rem_1fr]">
             <div className="w-[14rem] border-r border-neutral-800 py-2 px-3 text-sm text-gray-300 overflow-x-hidden">
               Channels
             </div>
 
-            {/* Header time row (hidden scrollbar, synced) */}
             <div
               ref={headerXRef}
               className="overflow-x-auto overflow-y-hidden epg-hide-x-scrollbar"
@@ -183,9 +171,7 @@ export default function EPGGrid({
           </div>
         </div>
 
-        {/* Body */}
         <div className="grid grid-cols-[14rem_1fr]">
-          {/* Left rail pinned */}
           <div className="w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
             <EPGChannelList
               channels={epgChannels}
@@ -195,7 +181,6 @@ export default function EPGGrid({
             />
           </div>
 
-          {/* Timeline (hidden scrollbar, synced) */}
           <div
             ref={bodyXRef}
             className="overflow-x-auto overflow-y-hidden epg-hide-x-scrollbar"
@@ -211,7 +196,6 @@ export default function EPGGrid({
           </div>
         </div>
 
-        {/* Bottom scrollbar (VISIBLE + blue themed + auto-width) */}
         <div className="sticky bottom-0 z-50 bg-black border-t border-neutral-800 shadow-[0_-6px_16px_rgba(0,0,0,0.55)]">
           <div className="grid grid-cols-[14rem_1fr]">
             <div className="w-[14rem] border-r border-neutral-800 px-3 py-2 text-xs text-gray-400">
@@ -224,7 +208,6 @@ export default function EPGGrid({
                 className="h-10 overflow-x-auto overflow-y-hidden scroll-container epg-bottom-scroll"
                 onScroll={(e) => syncX("bottom", e.currentTarget.scrollLeft)}
               >
-                {/* Ghost spacer: always wider than viewport so scrollbar is visible */}
                 <div style={{ width: ghostWidth, height: 1 }} />
               </div>
             </div>
