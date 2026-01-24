@@ -3,7 +3,7 @@ import socketService from "../../services/SocketService";
 
 export default function EPGChannelList({
   channels,
-  selectedChannelId,                 // ✅ NEW
+  selectedChannelId,
   onChannelSelected,
   onChannelSelectCheckPermission,
 }) {
@@ -11,20 +11,16 @@ export default function EPGChannelList({
     e.preventDefault();
     e.stopPropagation();
 
-    const id = ch.channelId; // backend EPG uses channelId
+    const id = ch.channelId;
     if (id === null || id === undefined) return;
 
-    // ✅ Prevent re-selecting same channel
+    // ✅ Prevent re-selecting the current channel
     if (selectedChannelId != null && id === selectedChannelId) return;
 
-    // ✅ Option A: permission check handles opening Admin modal elsewhere
-    if (onChannelSelectCheckPermission && !onChannelSelectCheckPermission()) {
-      return;
-    }
+    // ✅ Option A permission check (modal opens inside the function)
+    if (onChannelSelectCheckPermission && !onChannelSelectCheckPermission()) return;
 
     socketService.setCurrentChannel(id);
-
-    // Optional: close EPG drawer after selecting
     onChannelSelected?.();
   };
 
