@@ -1,7 +1,12 @@
 
 import socketService from "../../services/SocketService";
 
-export default function EPGChannelList({ channels, onChannelSelected }) {
+export default function EPGChannelList({
+  channels,
+  onChannelSelected,
+  onChannelSelectCheckPermission,
+  onPermissionDenied,
+}) {
   const handleSelect = (ch, e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -9,10 +14,17 @@ export default function EPGChannelList({ channels, onChannelSelected }) {
     const id = ch.channelId; // IMPORTANT: backend epg uses channelId
     if (id === null || id === undefined) return;
 
-    // Change currently playing channel
+    // ✅ Permission check (reuse same rule as main ChannelList)
+    if (onChannelSelectCheckPermission && !onChannelSelectCheckPermission()) {
+      // ✅ Let parent open Admin modal (or show toast)
+      onPermissionDenied?.();
+      return;
+    }
+
+    // ✅ Change currently playing channel
     socketService.setCurrentChannel(id);
 
-    // Optional: close the EPG drawer if parent passed a callback
+    // ✅ Optional: close EPG drawer after selecting
     onChannelSelected?.();
   };
 
@@ -51,4 +63,3 @@ export default function EPGChannelList({ channels, onChannelSelected }) {
     </div>
   );
 }
-
