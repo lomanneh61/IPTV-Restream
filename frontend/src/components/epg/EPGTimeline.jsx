@@ -1,8 +1,7 @@
 
 import EPGProgramCard from "./EPGProgramCard";
 
-export default function EPGTimeline({ epgChannels }) {
-  // epgChannels = [{ channelId, name, now, next, matched, ... }]
+export default function EPGTimeline({ channels, selectedChannelId }) {
   const startTime = new Date();
   startTime.setMinutes(0, 0, 0);
 
@@ -11,13 +10,12 @@ export default function EPGTimeline({ epgChannels }) {
     return t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   });
 
+  // Optional: if you want to show only the selected channel’s row
+  // set this to channels.filter(...)
+  const rows = channels;
+
   return (
-    <div
-      className="flex-1 overflow-auto relative"
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
+    <div className="flex-1 overflow-auto relative">
       {/* Time Header */}
       <div className="sticky top-0 z-10 bg-neutral-900 border-b border-neutral-800 flex">
         {timeSlots.map((t) => (
@@ -31,20 +29,26 @@ export default function EPGTimeline({ epgChannels }) {
       </div>
 
       {/* Program Rows */}
-      {(!epgChannels || epgChannels.length === 0) && (
-        <div className="p-4 text-gray-400">No EPG mapped for this channel.</div>
-      )}
+      {rows.map((ch) => {
+        const isSelected = ch.channelId === selectedChannelId;
 
-      {epgChannels?.map((ch) => {
         const programs = [
           ...(ch.now ? [{ ...ch.now, __kind: "now" }] : []),
           ...((ch.next || []).map((p) => ({ ...p, __kind: "next" }))),
         ];
 
         return (
-          <div key={ch.channelId ?? ch.name} className="flex border-b border-neutral-800">
+          <div
+            key={ch.channelId ?? ch.name}
+            className={[
+              "flex border-b border-neutral-800",
+              isSelected ? "bg-neutral-900/40" : "",
+            ].join(" ")}
+          >
             {programs.length === 0 ? (
-              <div className="p-4 text-gray-400">No programs available.</div>
+              <div className="p-4 text-gray-400">
+                {ch.matched ? "No programs in range." : "No EPG match for this channel."}
+              </div>
             ) : (
               programs.map((p) => (
                 <EPGProgramCard
