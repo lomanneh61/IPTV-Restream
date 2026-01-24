@@ -1,5 +1,4 @@
 
-
 import React, { useContext, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { Channel, ChannelMode } from "../types";
@@ -123,7 +122,9 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
   };
 
   return (
-    <div className="relative bg-gray-800 rounded-lg overflow-hidden">
+    // ✅ No absolute positioning needed; stack content vertically
+    <div className="bg-gray-800 rounded-lg overflow-hidden flex flex-col">
+      {/* Video */}
       <video
         ref={videoRef}
         className="w-full aspect-video bg-black"
@@ -134,6 +135,7 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         onClick={handleVideoClick}
       />
 
+      {/* Header */}
       <div className="flex items-center p-4 bg-gray-900 text-white">
         <img
           src={channel?.avatar}
@@ -155,10 +157,11 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         </button>
       </div>
 
+      {/* ✅ Drawer UNDER the player (never overlays the video) */}
       {showEPG && (
-        <div className="absolute left-0 right-0 bottom-0 h-[38%] bg-gray-950/95 border-t border-gray-700 z-50 overflow-auto">
-          <div className="sticky top-0 bg-gray-950/95 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
-            <div className="font-semibold">EPG</div>
+        <div className="w-full bg-gray-950/95 border-t border-gray-700">
+          <div className="bg-gray-950/95 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
+            <div className="font-semibold text-white">EPG</div>
             <button
               type="button"
               onClick={(e) => {
@@ -166,14 +169,17 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
                 e.stopPropagation();
                 setShowEPG(false);
               }}
-              className="px-2 py-1 rounded hover:bg-gray-800"
+              className="px-2 py-1 rounded hover:bg-gray-800 text-white"
+              aria-label="Close EPG"
             >
               ✕
             </button>
           </div>
 
-          <div className="p-3">
-            <EPGGrid channels={channel ? [channel] : []} />
+          {/* Drawer body height (adjust as you like) */}
+          <div className="h-[420px] p-3 overflow-hidden">
+            {/* Full grid (all channels) */}
+            <EPGGrid />
           </div>
         </div>
       )}
