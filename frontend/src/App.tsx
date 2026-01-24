@@ -180,6 +180,17 @@ function AppContent() {
     }
   };
 
+  
+// ✅ Reuse the SAME channel-select permission logic everywhere (ChannelList + EPG clicks)
+const canSelectChannel = () => {
+  if (isAdminEnabled && channelSelectRequiresAdmin && !isAdmin) {
+    setIsAdminModalOpen(true);
+    return false;
+  }
+  return true;
+};
+
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
       <div className="container mx-auto py-4">
