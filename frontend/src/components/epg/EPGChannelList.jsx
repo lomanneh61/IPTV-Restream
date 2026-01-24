@@ -3,6 +3,7 @@ import socketService from "../../services/SocketService";
 
 export default function EPGChannelList({
   channels,
+  selectedChannelId,                 // ✅ NEW
   onChannelSelected,
   onChannelSelectCheckPermission,
 }) {
@@ -13,26 +14,36 @@ export default function EPGChannelList({
     const id = ch.channelId; // backend EPG uses channelId
     if (id === null || id === undefined) return;
 
+    // ✅ Prevent re-selecting same channel
+    if (selectedChannelId != null && id === selectedChannelId) return;
+
     // ✅ Option A: permission check handles opening Admin modal elsewhere
     if (onChannelSelectCheckPermission && !onChannelSelectCheckPermission()) {
       return;
     }
 
     socketService.setCurrentChannel(id);
-    onChannelSelected?.(); // optional: close drawer
+
+    // Optional: close EPG drawer after selecting
+    onChannelSelected?.();
   };
 
   return (
     <div className="bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
       {channels.map((ch) => {
         const src = ch.logo || ch.avatar || "";
+        const isSelected = selectedChannelId != null && ch.channelId === selectedChannelId;
 
         return (
           <button
             key={ch.channelId ?? ch.name}
             type="button"
             onClick={(e) => handleSelect(ch, e)}
-            className="w-full text-left h-20 flex items-center gap-3 p-3 border-b border-neutral-800 hover:bg-neutral-800 transition"
+            className={[
+              "w-full text-left h-20 flex items-center gap-3 p-3 border-b border-neutral-800 transition",
+              "hover:bg-neutral-800",
+              isSelected ? "bg-neutral-800" : "",
+            ].join(" ")}
           >
             {src ? (
               <img
@@ -57,5 +68,3 @@ export default function EPGChannelList({
     </div>
   );
 }
-
-
