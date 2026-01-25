@@ -3,6 +3,7 @@ export default function EPGProgramCard({
   program,
   showNowBadge = false,
   showLiveBadge = false,
+  isSelectedRow = false, // ✅ optional
 }) {
   const title = program?.title || "Untitled";
   const desc = program?.desc || "";
@@ -20,26 +21,31 @@ export default function EPGProgramCard({
         })}`
       : "";
 
-  // Prefer NOW over LIVE if both accidentally set
+  // Prefer NOW over LIVE if both are set
   const badge = showNowBadge ? "NOW" : showLiveBadge ? "LIVE" : null;
 
   return (
-    <div className="w-48 h-20 p-3 border-r border-neutral-800 hover:bg-neutral-900 transition overflow-hidden">
-      {/* Top row: badge + title */}
+    <div
+      className={[
+        "w-48 h-20 p-3 border-r transition overflow-hidden",
+        "epg-blue-border",                 // ✅ blue border separators
+        "hover:bg-blue-500/10",            // ✅ blue hover similar to channel list
+        "epg-card",                        // ✅ optional subtle glass tint (if defined)
+        isSelectedRow ? "bg-blue-500/5" : "", // ✅ optional subtle selected-row tint on cards
+      ].join(" ")}
+    >
+      {/* Badge + title */}
       <div className="flex items-start gap-2">
         {badge && (
           <span
             className={[
-              "shrink-0 text-[10px] font-bold tracking-wide px-2 py-0.5 rounded border",
-              badge === "NOW"
-                ? "bg-green-600/20 text-green-300 border-green-500/30"
-                : "bg-blue-600/20 text-blue-300 border-blue-500/30",
+              "shrink-0 text-[10px] font-bold tracking-wide px-2 py-0.5 rounded",
+              badge === "NOW" ? "epg-badge-now" : "epg-badge-live",
             ].join(" ")}
           >
             {badge}
           </span>
         )}
-
         <div className="text-sm font-semibold line-clamp-2">{title}</div>
       </div>
 
@@ -48,4 +54,3 @@ export default function EPGProgramCard({
     </div>
   );
 }
-
