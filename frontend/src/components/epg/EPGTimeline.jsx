@@ -19,15 +19,16 @@ export default function EPGTimeline({ channels, selectedChannelId }) {
           <div
             key={ch.channelId ?? ch.name}
             className={[
-              "h-20 flex border-b border-neutral-800",
-              isSelected ? "bg-neutral-900/40 ring-1 ring-blue-500/40" : "",
+              "h-20 flex border-b transition",
+              "epg-blue-border epg-row-hover",         // ✅ match ChannelList hover + border theme
+              isSelected ? "epg-row-selected" : "",    // ✅ match ChannelList selected theme
             ].join(" ")}
           >
             {programs.length === 0 ? (
-              <div className="p-3 text-gray-400 flex items-center gap-2">
-                {/* ✅ LIVE badge when selected + no current program + no programs */}
+              <div className="p-3 text-gray-300 flex items-center gap-2">
+                {/* LIVE badge (blue themed) when selected + no current program + no programs */}
                 {isSelected && !hasNow && (
-                  <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded bg-blue-600/20 text-blue-300 border border-blue-500/30">
+                  <span className="epg-badge-live text-[10px] font-bold tracking-wide px-2 py-0.5 rounded">
                     LIVE
                   </span>
                 )}
@@ -40,11 +41,10 @@ export default function EPGTimeline({ channels, selectedChannelId }) {
                 <EPGProgramCard
                   key={`${p.start || "no-start"}-${p.title || "no-title"}-${p.__kind}`}
                   program={p}
-                  // ✅ NOW badge only for selected channel’s current program
                   showNowBadge={isSelected && p.__kind === "now"}
-                  // ✅ LIVE badge when selected channel has no current program data:
-                  // place it on the first visible card (usually the first "next")
                   showLiveBadge={isSelected && !hasNow && idx === 0}
+                  // ✅ lets ProgramCard match row hover/selected styling if you want
+                  isSelectedRow={isSelected}
                 />
               ))
             )}
