@@ -3,7 +3,7 @@ export default function EPGProgramCard({
   program,
   showNowBadge = false,
   showLiveBadge = false,
-  isSelectedRow = false, // ✅ optional
+  isSelectedRow = false,
 }) {
   const title = program?.title || "Untitled";
   const desc = program?.desc || "";
@@ -28,10 +28,10 @@ export default function EPGProgramCard({
     <div
       className={[
         "w-48 h-20 p-3 border-r transition overflow-hidden",
-        "epg-blue-border",                 // ✅ blue border separators
-        "hover:bg-blue-500/10",            // ✅ blue hover similar to channel list
-        "epg-card",                        // ✅ optional subtle glass tint (if defined)
-        isSelectedRow ? "bg-blue-500/5" : "", // ✅ optional subtle selected-row tint on cards
+        "epg-blue-border",
+        "hover:bg-blue-500/10",
+        "epg-card",
+        isSelectedRow ? "bg-blue-500/5" : "",
       ].join(" ")}
     >
       {/* Badge + title */}
@@ -39,18 +39,27 @@ export default function EPGProgramCard({
         {badge && (
           <span
             className={[
-              "shrink-0 text-[10px] font-bold tracking-wide px-2 py-0.5 rounded",
-              badge === "NOW" ? "epg-badge-now" : "epg-badge-live",
+              "shrink-0 text-[10px] font-bold tracking-wide px-2 py-0.5 rounded border",
+              badge === "NOW"
+                ? "bg-green-600/20 text-green-200 border-green-500/30"
+                : "bg-blue-600/20 text-blue-200 border-blue-500/30",
             ].join(" ")}
           >
             {badge}
           </span>
         )}
-        <div className="text-sm font-semibold line-clamp-2">{title}</div>
+
+        {/* Primary text: soft near-white (TV + phone friendly) */}
+        <div className="text-sm font-semibold text-slate-200 line-clamp-2">
+          {title}
+        </div>
       </div>
 
-      {timeLabel && <div className="text-xs text-gray-400 mt-1">{timeLabel}</div>}
-      {desc && <div className="text-xs text-gray-300 mt-1 line-clamp-1">{desc}</div>}
+      {/* Secondary text */}
+      {timeLabel && <div className="text-xs text-slate-400 mt-1">{timeLabel}</div>}
+
+      {/* Tertiary text (dimmed, 1 line for phone) */}
+      {desc && <div className="text-xs text-slate-300/80 mt-1 line-clamp-1">{desc}</div>}
     </div>
   );
 }
