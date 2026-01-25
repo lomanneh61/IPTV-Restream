@@ -17,7 +17,7 @@ export default function EPGChannelList({
     // ✅ Prevent re-selecting the current channel
     if (selectedChannelId != null && id === selectedChannelId) return;
 
-    // ✅ Option A permission check (modal opens inside the function)
+    // ✅ Option A permission check (Admin modal opens inside canSelectChannel in App.tsx)
     if (onChannelSelectCheckPermission && !onChannelSelectCheckPermission()) return;
 
     socketService.setCurrentChannel(id);
@@ -25,7 +25,7 @@ export default function EPGChannelList({
   };
 
   return (
-    <div className="bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
+    <div className="epg-blue-panel border-r epg-blue-border overflow-x-hidden">
       {channels.map((ch) => {
         const src = ch.logo || ch.avatar || "";
         const isSelected = selectedChannelId != null && ch.channelId === selectedChannelId;
@@ -36,9 +36,9 @@ export default function EPGChannelList({
             type="button"
             onClick={(e) => handleSelect(ch, e)}
             className={[
-              "w-full text-left h-20 flex items-center gap-3 p-3 border-b border-neutral-800 transition",
-              "hover:bg-neutral-800",
-              isSelected ? "bg-neutral-800" : "",
+              "w-full text-left h-20 flex items-center gap-3 p-3 border-b transition",
+              "epg-blue-border epg-row-hover",
+              isSelected ? "epg-row-selected" : "",
             ].join(" ")}
           >
             {src ? (
@@ -54,7 +54,7 @@ export default function EPGChannelList({
 
             <div className="min-w-0">
               <div className="text-sm font-medium truncate">{ch.name}</div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-300">
                 {ch.matched ? "EPG OK" : "No match"}
               </div>
             </div>
