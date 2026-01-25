@@ -25,10 +25,29 @@ export default function EPGGrid({
 
   const timeSlots = useMemo(() => buildTimeSlots(), []);
 
-  // ✅ Refs for syncing horizontal scroll
-  const headerXRef = useRef(null);   // time labels
-  const bodyXRef = useRef(null);     // timeline cards
-  const bottomXRef = useRef(null);   // visible scrollbar at bottom
+  // Refs for syncing horizontal scroll
+  const headerXRef = useRef(null);
+  const bodyXRef = useRef(null);
+  const bottomXRef = useRef(null);
+
+  // Tooltip toggle for phone + close on outside click
+  const [showLegend, setShowLegend] = useState(false);
+  const legendRef = useRef(null);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!legendRef.current) return;
+      if (!legendRef.current.contains(e.target)) setShowLegend(false);
+    };
+
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("touchstart", onDocClick, { passive: true });
+
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("touchstart", onDocClick);
+    };
+  }, []);
 
   // prevent scroll ping-pong
   const syncingRef = useRef(false);
@@ -41,7 +60,6 @@ export default function EPGGrid({
     if (source !== "body" && bodyXRef.current) bodyXRef.current.scrollLeft = left;
     if (source !== "bottom" && bottomXRef.current) bottomXRef.current.scrollLeft = left;
 
-    // release lock next frame
     requestAnimationFrame(() => {
       syncingRef.current = false;
     });
@@ -74,7 +92,6 @@ export default function EPGGrid({
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync selection whenever the actual playing channel changes
@@ -94,16 +111,17 @@ export default function EPGGrid({
 
   return (
     <div className="h-full text-white rounded-xl shadow-lg overflow-hidden epg-blue-surface">
-      {/* ✅ Vertical scroll only here */}
+      {/* Vertical scroll only here */}
       <div className="h-full overflow-y-auto overflow-x-hidden">
-        {/* ✅ Sticky header */}
-        <div className="sticky top-0 z-50 bg-neutral-900 border-b border-neutral-800">
+        {/* ✅ Sticky header (BLUE THEME APPLIED HERE) */}
+        <div className="sticky top-0 z-50 epg-blue-panel border-b epg-blue-border">
           <div className="grid grid-cols-[14rem_1fr]">
-            <div className="w-[14rem] border-r border-neutral-800 py-2 px-3 text-sm text-gray-300 overflow-x-hidden">
+            {/* ✅ Channels header cell (BLUE THEME) */}
+            <div className="w-[14rem] border-r epg-blue-border py-2 px-3 text-sm epg-blue-header-text overflow-x-hidden epg-blue-panel">
               Channels
             </div>
 
-            {/* Header time row: horizontal scroll hidden (follows body/bottom) */}
+            {/* ✅ Time header row (BLUE THEME + HOVER) */}
             <div
               ref={headerXRef}
               className="overflow-x-auto overflow-y-hidden epg-hide-x-scrollbar"
@@ -113,7 +131,12 @@ export default function EPGGrid({
                 {timeSlots.map((t) => (
                   <div
                     key={t}
-                    className="w-48 text-center py-2 text-gray-300 text-sm border-r border-neutral-800"
+                    className={[
+                      "w-48 text-center py-2 text-sm border-r transition",
+                      "epg-blue-panel epg-blue-border",
+                      "epg-blue-header-text",
+                      "hover:bg-blue-500/10", // hover matches channel list vibe
+                    ].join(" ")}
                   >
                     {t}
                   </div>
@@ -123,9 +146,9 @@ export default function EPGGrid({
           </div>
         </div>
 
-        {/* ✅ Body */}
+        {/* Body */}
         <div className="grid grid-cols-[14rem_1fr]">
-          {/* Left rail pinned */}
+          {/* Left rail pinned (keep your existing styling OR swap to epg-blue-panel if you want) */}
           <div className="w-[14rem] bg-neutral-900 border-r border-neutral-800 overflow-x-hidden">
             <EPGChannelList
               channels={epgChannels}
@@ -147,22 +170,63 @@ export default function EPGGrid({
           </div>
         </div>
 
-        {/* ✅ Bottom scrollbar (visible) */}
+        {/* Bottom scrollbar (visible) + minimal tooltip legend */}
         <div className="sticky bottom-0 z-50 bg-black border-t border-neutral-800">
           <div className="grid grid-cols-[14rem_1fr]">
-            {/* left spacer to align */}
-            <div className="w-[14rem] border-r border-neutral-800" />
+            {/* Left area: Timeline label + info tooltip */}
+            <div className="w-[14rem] border-r border-neutral-800 px-3 py-2 text-xs text-slate-400 flex items-center gap-2">
+              <span>Timeline</span>
 
-            {/* visible horizontal scrollbar */}
+              <span ref={legendRef} className="relative inline-flex items-center group">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowLegend((v) => !v);
+                  }}
+                  className="w-5 h-5 flex items-center justify-center rounded-full bg-blue-500/10 text-blue-200 border border-blue-500/20 text-[11px] font-bold hover:bg-blue-500/20 transition"
+                  aria-label="EPG legend"
+                  aria-expanded={showLegend}
+                >
+                  i
+                </button>
+
+                {/* Tooltip: hover (desktop) OR click/tap (phone) */}
+                <div
+                  className={[
+                    "absolute left-0 bottom-full mb-2 z-50",
+                    "w-[280px] rounded-lg border border-blue-500/20 bg-slate-950/95 p-3 text-[12px] text-slate-200 shadow-xl",
+                    showLegend ? "block" : "hidden group-hover:block",
+                  ].join(" ")}
+                >
+                  <div className="font-semibold mb-2 text-blue-100">Legend</div>
+
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded border bg-green-600/20 text-green-200 border-green-500/30">
+                      NOW
+                    </span>
+                    <span className="text-slate-300">Current program from EPG</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded border bg-blue-600/20 text-blue-200 border-blue-500/30">
+                      LIVE
+                    </span>
+                    <span className="text-slate-300">Live stream (no current program data)</span>
+                  </div>
+                </div>
+              </span>
+            </div>
+
+            {/* Visible horizontal scrollbar */}
             <div
               ref={bottomXRef}
               className="overflow-x-auto overflow-y-hidden"
               onScroll={(e) => syncX("bottom", e.currentTarget.scrollLeft)}
             >
-              {/* This “ghost” content gives the scrollbar the same width as the timeline */}
+              {/* Ghost content gives scrollbar width (keep your working value) */}
               <div className="min-w-max h-4">
-                {/* match timeline width: 6 * w-48 (72rem) minimum,
-                    but timeline may be wider if you later add more slots */}
                 <div className="w-[72rem] h-4" />
               </div>
             </div>
