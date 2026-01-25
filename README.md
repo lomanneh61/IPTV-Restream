@@ -14,8 +14,8 @@
 **Restream / Proxy** - Proxy your iptv streams through the backend. <br>
 **Synchronization** - The selection and playback of the stream is perfectly synchronized for all viewers. <br>
 **Channels** - Add multiple iptv streams and playlists, you can switch between. <br>
-**Live chat** - chat with other viewers with a randomized profile.
-**Epg** - add your epg in the .env file to show epg at the bottom of the player.
+**Live chat** - chat with other viewers with a randomized profile. <br>
+**Epg** - Add your epg in the .env file to show epg at the bottom of the player.
 
 ## 🚀 Run
 
