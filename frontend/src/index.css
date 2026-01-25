@@ -66,24 +66,136 @@ video::-webkit-media-controls-seek-forward-button {
   background: transparent;
 }
 
-/* --------------------------------------------
-   Optional polish: Bottom EPG scrollbar only
-   -------------------------------------------- 
-.epg-bottom-scroll {
-  padding-bottom: 2px;
+/* --------------------------------------------Added*/
+
+
+
+
+
+/* ============================================
+   EPG Light-Blue Theme (safe: no scroll changes)
+   ============================================ */
+
+/* Use this on the timeline background container */
+.epg-blue-theme {
+  background-color: rgba(2, 6, 23, 0.85); /* slate-950-ish */
 }
 
-.epg-bottom-scroll::-webkit-scrollbar {
-  height: 10px;
+/* Light blue grid lines (matches w-48 = 12rem and h-20 = 5rem) */
+.epg-blue-theme.epg-grid-lines {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(59, 130, 246, 0.28) 0px,   /* blue-500 */
+      rgba(59, 130, 246, 0.28) 1px,
+      rgba(0, 0, 0, 0) 1px,
+      rgba(0, 0, 0, 0) 12rem
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(59, 130, 246, 0.18) 0px,
+      rgba(59, 130, 246, 0.18) 1px,
+      rgba(0, 0, 0, 0) 1px,
+      rgba(0, 0, 0, 0) 5rem
+    );
+  background-repeat: repeat;
 }
 
-.epg-bottom-scroll::-webkit-scrollbar-track {
-  margin-block: 6px;
-  background-color: #111827;
-  border-radius: 10px;
+/* Optional: nicer border color for EPG separators */
+.epg-blue-border {
+  border-color: rgba(59, 130, 246, 0.25) !important;
 }
 
-.epg-bottom-scroll {
-  scrollbar-width: thin;
+/* Optional: selected row glow (if you want extra emphasis beyond ring classes) */
+.epg-selected-row {
+  background: rgba(59, 130, 246, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.35);
 }
-*/
+
+
+/* =========================================================
+   EPG BLUE THEME (overall)
+   Safe: does NOT change scroll behavior, only visuals.
+   ========================================================= */
+
+/* Main EPG container tint */
+.epg-blue-surface {
+  background: rgba(2, 6, 23, 0.92); /* slate-950-ish */
+}
+
+/* Slightly lighter panel for headers/rails */
+.epg-blue-panel {
+  background: rgba(15, 23, 42, 0.92); /* slate-900-ish */
+}
+
+/* Blue-ish borders/separators */
+.epg-blue-border {
+  border-color: rgba(59, 130, 246, 0.22) !important; /* blue-500 */
+}
+
+/* Sticky header text color polish */
+.epg-blue-header-text {
+  color: rgba(191, 219, 254, 0.95); /* blue-200 */
+}
+
+/* Selected channel row highlight */
+.epg-row-selected {
+  background: rgba(59, 130, 246, 0.10); /* blue-500 */
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+/* Hover highlight in channel list */
+.epg-row-hover:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Grid lines: vertical every 12rem (w-48), horizontal every 5rem (h-20) */
+.epg-blue-gridlines {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(59, 130, 246, 0.25) 0px,
+      rgba(59, 130, 246, 0.25) 1px,
+      rgba(0, 0, 0, 0) 1px,
+      rgba(0, 0, 0, 0) 12rem
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(59, 130, 246, 0.16) 0px,
+      rgba(59, 130, 246, 0.16) 1px,
+      rgba(0, 0, 0, 0) 1px,
+      rgba(0, 0, 0, 0) 5rem
+    );
+  background-repeat: repeat;
+}
+
+/* Badge styles (NOW + LIVE) */
+.epg-badge-now {
+  background: rgba(34, 197, 94, 0.18);    /* green */
+  color: rgba(187, 247, 208, 0.95);       /* green-200 */
+  border: 1px solid rgba(34, 197, 94, 0.30);
+}
+
+.epg-badge-live {
+  background: rgba(59, 130, 246, 0.18);   /* blue */
+  color: rgba(191, 219, 254, 0.95);       /* blue-200 */
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+/* Optional: make timeline cards feel slightly glassy */
+.epg-card {
+  background: rgba(2, 6, 23, 0.35);
+}
+
+/* Optional: Improve bottom scrollbar label strip (if you show “Timeline”) */
+.epg-bottom-strip {
+  background: rgba(2, 6, 23, 0.95);
+}
+
+/* Optional: if you use "ring-blue..." Tailwind, this boosts contrast a bit */
+.epg-ring {
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+
+
