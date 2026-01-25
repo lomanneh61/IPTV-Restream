@@ -93,7 +93,7 @@ export default function EPGGrid({
   }
 
   return (
-    <div className="h-full bg-black text-white rounded-xl shadow-lg overflow-hidden">
+    <div className="h-full text-white rounded-xl shadow-lg overflow-hidden epg-blue-surface">
       {/* ✅ Vertical scroll only here */}
       <div className="h-full overflow-y-auto overflow-x-hidden">
         {/* ✅ Sticky header */}
