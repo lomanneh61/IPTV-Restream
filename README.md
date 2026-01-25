@@ -1,5 +1,5 @@
 # IPTV StreamHub
- A simple IPTV `restream` and `synchronization` (watch2gether) application with `web` frontend. Share your iptv playlist and watch it together with your friends.
+ A simple IPTV `restream` and `synchronization` (watch2gether) application with `web` frontend. Share your iptv playlist and watch it together with your friends. 
 
 ## 💡Use Cases
 - [x] IPTV Web player supporting multiple playlists at once.
@@ -15,6 +15,7 @@
 **Synchronization** - The selection and playback of the stream is perfectly synchronized for all viewers. <br>
 **Channels** - Add multiple iptv streams and playlists, you can switch between. <br>
 **Live chat** - chat with other viewers with a randomized profile.
+**Epg** - add your epg in the .env file to show epg at the bottom of the player.
 
 ## 🚀 Run
 
