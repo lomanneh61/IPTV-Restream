@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  backend:
+    volumes:
+      - channels:/channels
+    environment:
+      CHANNELS_PATH: /channels
+      INGEST_TOKEN: ${INGEST_TOKEN:-change-me}
+      PLAYLIST_URL: ${PLAYLIST_URL}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      SPLIT_BY_GROUP: "true"
+      SPLIT_BY_LANGUAGE: "true"
+      SPLIT_BY_COUNTRY: "true"
+      MAX_ITEMS_PER_FILE: "1000"
+
+  nginx:
+    volumes:
+      - channels:/usr/share/nginx/html/channels:ro
+
+  cron:
+    image: alpine:3.20
+    depends_on: [ backend ]
+    environment:
+      TOKEN: ${INGEST_TOKEN:-change-me}
+    command: ["/bin/sh","-c","crond -f -l 8"]
+    volumes:
+      - ./crontab:/etc/crontabs/root:ro
+    networks: [ app-network ]
+
+volumes:
+  channels:
