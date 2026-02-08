@@ -11,7 +11,8 @@ jobs:
   mkbranch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -116,7 +117,7 @@ function toM3U(name,items){
     if(e['group-title'])A.push(`group-title="${e['group-title']}"`);
     if(e['tvg-language'])A.push(`tvg-language="${e['tvg-language']}"`);
     if(e['tvg-country'])A.push(`tvg-country="${e['tvg-country']}"`);
-    L.push(`#EXTINF:-1 ${A.join(' ')},${e.name||'Unknown'}`); L.push(e.url);
+    L.push(`#EXTINF:-1 ${A.join(' ')} ,${e.name||'Unknown'}`.replace('  ',', ')); L.push(e.url);
   } return L.join('\n');
 }
 function writeSection(rootRel, items){
