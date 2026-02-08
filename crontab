@@ -1,0 +1,2 @@
+# Nightly at 03:15 UTC
+15 3 * * * wget -qO- --header="Authorization: Bearer ${TOKEN}" --post-data="" http://backend:5000/api/ingest?force=false >/dev/null 2>&1
