@@ -1,4 +1,4 @@
-name: Create ingest branch (short)
+name: Create ingest branch (smoke)
 
 on:
   workflow_dispatch:
@@ -11,263 +11,23 @@ jobs:
   mkbranch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Write new files
-        shell: bash
+      - name: Create a placeholder change
         run: |
           set -euo pipefail
-          mkdir -p backend/services backend/controllers
+          echo "ingest placeholder $(date -u +"%Y-%m-%dT%H:%M:%SZ")" > INGEST_PLACEHOLDER.txt
 
-          # --- backend/services/m3u.js ---
-          cat > backend/services/m3u.js <<'JS'
-const ATTR_RE=/([\w-]+)="([^"]*)"/g;
-function parseM3U(text){
-  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  const out=[];let cur=null;
-  for(const line of lines){
-    if(line.startsWith('#EXTINF')){
-      cur={};const a={};let m;while((m=ATTR_RE.exec(line))!==null)a[m[1]]=m[2];
-      cur['tvg-id']=a['tvg-id']||'';cur['tvg-name']=a['tvg-name']||'';
-      cur['tvg-logo']=a['tvg-logo']||'';cur['group-title']=a['group-title']||'';
-      cur['tvg-language']=a['tvg-language']||'';cur['tvg-country']=a['tvg-country']||'';
-      const i=line.indexOf(',');cur.name=i>=0?line.slice(i+1).trim():'Unknown';
-    } else if(!line.startsWith('#') && cur){ cur.url=line; out.push(cur); cur=null; }
-  }
-  return out;
-}
-module.exports={ parseM3U };
-JS
-
-          # --- backend/services/ingest.js ---
-          cat > backend/services/ingest.js <<'JS'
-const fs=require('fs'),path=require('path'),crypto=require('crypto');
-const https=require('https'),http=require('http');
-const {parseM3U}=require('./m3u');
-const CHANNELS_DIR=process.env.CHANNELS_PATH||'/channels';
-const PLAYLIST_URL=process.env.PLAYLIST_URL||'';
-const PUBLIC_BASE_URL=(process.env.PUBLIC_BASE_URL||'').replace(/\/+$/,'');
-const READMETITLE=process.env.INGEST_README_TITLE||'IPTV Index';
-const MAX_ITEMS_PER_FILE=parseInt(process.env.MAX_ITEMS_PER_FILE||'1000',10)||0;
-const VOD=(process.env.VOD_MARKERS||'(?i)\\bvod\\b, (?i)\\bmovie(s)?\\b, /movie/').split(',').map(s=>new RegExp(s.trim()));
-const SERIES=(process.env.SERIES_MARKERS||'(?i)\\bseries\\b, (?i)S\\d{1,2}E\\d{1,2}, /series/').split(',').map(s=>new RegExp(s.trim()));
-const STATE=path.join(CHANNELS_DIR,'state.json');
-const ensure=d=>{ if(!fs.existsSync(d)) fs.mkdirSync(d,{recursive:true}); };
-const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
-const hget=(url,headers={})=>new Promise((resolve,reject)=>{
-  const mod=url.startsWith('https')?https:http;
-  const req=mod.get(url,{headers},res=>{
-    if(res.statusCode>=300&&res.statusCode<400&&res.headers.location) return resolve(hget(res.headers.location,headers));
-    if(res.statusCode!==200) return reject(new Error(`GET ${url} -> ${res.statusCode}`));
-    const chunks=[]; res.on('data',d=>chunks.push(d)); res.on('end',()=>resolve({body:Buffer.concat(chunks),headers:res.headers}));
-  }); req.on('error',reject);
-});
-const hhead=(url,headers={})=>new Promise(resolve=>{
-  const mod=url.startsWith('https')?https:http;
-  const req=mod.request(url,{method:'HEAD',headers},res=>resolve(res.headers||{}));
-  req.on('error',()=>resolve({})); req.end();
-});
-const load=()=>{ try{return JSON.parse(fs.readFileSync(STATE,'utf-8'))}catch{return{}}; };
-const save=s=>{ ensure(path.dirname(STATE)); fs.writeFileSync(STATE,JSON.stringify(s,null,2)); };
-async function shouldReingest(){
-  const st=load(); const head=await hhead(PLAYLIST_URL);
-  if(head.etag && st.etag===head.etag) return {changed:false,headers:head};
-  if(head['last-modified'] && st.last_modified===head['last-modified']) return {changed:false,headers:head};
-  const r=await hget(PLAYLIST_URL); const hash=sha(r.body);
-  if(st.sha256 && st.sha256===hash) return {changed:false,headers:r.headers};
-  return {changed:true,headers:r.headers,body:r.body,bodyHash:hash};
-}
-function classify(list){
-  const live=[],vod=[],series=[];
-  for(const e of list){ const t=`${e.name} ${e['group-title']} ${e.url}`;
-    if(SERIES.some(rx=>rx.test(t))) series.push(e);
-    else if(VOD.some(rx=>rx.test(t))) vod.push(e);
-    else live.push(e);
-  } return {live,vod,series};
-}
-function buckets(entries, flags){
-  const b=new Map();
-  for(const e of entries){
-    const k=[flags.g?e['group-title']||'Unknown':null, flags.l?e['tvg-language']||'Unknown':null, flags.c?e['tvg-country']||'Unknown':null]
-      .filter(Boolean).join(' | ') || 'all';
-    if(!b.has(k)) b.set(k,[]);
-    b.get(k).push(e);
-  }
-  const out=[];
-  for(const [name, items] of b){
-    if(MAX_ITEMS_PER_FILE && items.length>MAX_ITEMS_PER_FILE){
-      const n=Math.ceil(items.length/MAX_ITEMS_PER_FILE);
-      for(let i=0;i<n;i++) out.push([`${name} (${i+1}/${n})`, items.slice(i*MAX_ITEMS_PER_FILE,(i+1)*MAX_ITEMS_PER_FILE)]);
-    } else out.push([name,items]);
-  }
-  out.sort((a,b)=>a[0].localeCompare(b[0]));
-  return out;
-}
-const safe=s=>String(s).replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^_+|_+$/g,'');
-function toM3U(name,items){
-  const L=['#EXTM3U'];
-  for(const e of items){
-    const A=[];
-    if(e['tvg-id'])A.push(`tvg-id="${e['tvg-id']}"`);
-    if(e['tvg-name'])A.push(`tvg-name="${e['tvg-name']}"`);
-    if(e['tvg-logo'])A.push(`tvg-logo="${e['tvg-logo']}"`);
-    if(e['group-title'])A.push(`group-title="${e['group-title']}"`);
-    if(e['tvg-language'])A.push(`tvg-language="${e['tvg-language']}"`);
-    if(e['tvg-country'])A.push(`tvg-country="${e['tvg-country']}"`);
-    L.push(`#EXTINF:-1 ${A.join(' ')} ,${e.name||'Unknown'}`.replace('  ',', ')); L.push(e.url);
-  } return L.join('\n');
-}
-function writeSection(rootRel, items){
-  const meta=[];
-  for(const [name, list] of items){
-    const fname=`${safe(name)}.m3u`;
-    const rel=path.join(rootRel,fname), abs=path.join(CHANNELS_DIR,rel);
-    ensure(path.dirname(abs)); fs.writeFileSync(abs,toM3U(name,list),'utf-8');
-    fs.writeFileSync(abs.replace(/\.m3u$/,'.json'), JSON.stringify({name,count:list.length},null,2));
-    meta.push({name,count:list.length,relPath:rel});
-  } return meta;
-}
-function buildIndex(sections){
-  const now=new Date().toISOString();
-  const idx={title:READMETITLE,description:"Nightly maintained indexes split by group/language/country with LIVE, VOD, SERIES.",generated_at:now,live:[],vod:[],series:[]};
-  const add=(list,key)=>list.forEach(i=>{
-    const url=PUBLIC_BASE_URL?`${PUBLIC_BASE_URL}/${i.relPath.replace(/\\/g,'/')}`:i.relPath;
-    idx[key].push({name:i.name,count:i.count,url,json:url.replace(/\.m3u$/,'.json')});
-  });
-  add(sections.liveOut,'live'); add(sections.vodOut,'vod'); add(sections.seriesOut,'series');
-  fs.writeFileSync(path.join(CHANNELS_DIR,'index.json'), JSON.stringify(idx,null,2));
-  const md=[
-    `# ${READMETITLE}`,'',`Generated: \`${now}\``,'',
-    '## LIVE',   ...idx.live.map(x=>`- **${x.name}** — ${x.count}  \n  - M3U: ${x.url}\n  - JSON: ${x.json}`),'',
-    '## VOD',    ...idx.vod.map(x=>`- **${x.name}** — ${x.count}  \n  - M3U: ${x.url}\n  - JSON: ${x.json}`),'',
-    '## SERIES', ...idx.series.map(x=>`- **${x.name}** — ${x.count}  \n  - M3U: ${x.url}\n  - JSON: ${x.json}`),''
-  ].join('\n');
-  fs.writeFileSync(path.join(CHANNELS_DIR,'README.md'), md,'utf-8');
-}
-async function runIngest(force=false){
-  if(!PLAYLIST_URL) throw new Error('PLAYLIST_URL is not configured');
-  let payload, head={};
-  if(!force){ const r=await shouldReingest(); if(!r.changed) return {status:'noop',reason:'not changed'};
-    payload={body:r.body,headers:r.headers,hash:r.bodyHash}; head=r.headers||{};
-  } else { const r=await hget(PLAYLIST_URL); payload={body:r.body,headers:r.headers,hash:sha(r.body)}; head=r.headers||{}; }
-  const entries=parseM3U(payload.body.toString('utf-8'));
-  const {live, vod, series}=classify(entries);
-  const flags={g:process.env.SPLIT_BY_GROUP==='true', l:process.env.SPLIT_BY_LANGUAGE==='true', c:process.env.SPLIT_BY_COUNTRY==='true'};
-  const liveOut=writeSection('live',  buckets(live,flags));
-  const vodOut=writeSection('vod',    buckets(vod,flags));
-  const seriesOut=writeSection('series', buckets(series,flags));
-  buildIndex({liveOut,vodOut,seriesOut});
-  const next={updated_at:new Date().toISOString(), sha256:payload.hash, etag:head.etag, last_modified:head['last-modified'], counts:{all:entries.length,live:live.length,vod:vod.length,series:series.length}};
-  save(next); return {status:'ok',counts:next.counts,files:['index.json','README.md']};
-}
-module.exports={ runIngest };
-JS
-
-          # --- backend/controllers/ingest.js ---
-          cat > backend/controllers/ingest.js <<'JS'
-const { runIngest } = require('../services/ingest');
-const fs=require('fs'),path=require('path');
-const CHANNELS_DIR=process.env.CHANNELS_PATH||'/channels';
-const TOKEN=process.env.INGEST_TOKEN||'';
-const ok=req=>!TOKEN?true:((req.headers['authorization']||'').startsWith('Bearer ') && (req.headers['authorization'].split(' ',2)[1]===TOKEN));
-function mountIngestRoutes(app){
-  app.post('/api/ingest', async (req,res)=>{
-    if(!ok(req)) return res.status(401).json({error:'Unauthorized'});
-    const force=String(req.query.force)==='true';
-    try{ res.json(await runIngest(force)); }catch(e){ res.status(500).json({error:String(e && e.message || e)}); }
-  });
-  app.get('/api/ingest/status', (req,res)=>{
-    try{ const p=path.join(CHANNELS_DIR,'state.json'); return res.json({state: fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf-8')):{} }); }
-    catch{ return res.json({state:{}}); }
-  });
-}
-module.exports={ mountIngestRoutes };
-JS
-
-          # --- docker-compose.override.yml (short) ---
-          cat > docker-compose.override.yml <<'YML'
-version: "3.9"
-services:
-  backend:
-    volumes:
-      - channels:/channels
-    environment:
-      CHANNELS_PATH: /channels
-      INGEST_TOKEN: ${INGEST_TOKEN:-change-me}
-      PLAYLIST_URL: ${PLAYLIST_URL}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
-      SPLIT_BY_GROUP: "true"
-      SPLIT_BY_LANGUAGE: "true"
-      SPLIT_BY_COUNTRY: "true"
-      MAX_ITEMS_PER_FILE: "1000"
-  nginx:
-    volumes:
-      - channels:/usr/share/nginx/html/channels:ro
-  cron:
-    image: alpine:3.20
-    depends_on: [ backend ]
-    environment:
-      TOKEN: ${INGEST_TOKEN:-change-me}
-    command: ["/bin/sh","-c","crond -f -l 8"]
-    volumes:
-      - ./crontab:/etc/crontabs/root:ro
-    networks: [ app-network ]
-volumes:
-  channels:
-YML
-
-          # --- crontab (nightly) ---
-          cat > crontab <<'CRON'
-15 3 * * * wget -qO- --header="Authorization: Bearer ${TOKEN}" --post-data="" http://backend:5000/api/ingest?force=false >/dev/null 2>&1
-CRON
-
-      - name: Append minimal wiring to backend/server.js (idempotent)
-        shell: bash
-        run: |
-          if [ -f backend/server.js ]; then
-            if ! grep -q "auto-ingest wiring" backend/server.js; then
-              cat >> backend/server.js <<'JS'
-
-// --- auto-ingest wiring (short) ---
-try {
-  const express = require('express');
-  const { mountIngestRoutes } = require('./controllers/ingest');
-  const channelsDir = process.env.CHANNELS_PATH || '/channels';
-  if (typeof app?.use === 'function') {
-    app.use('/channels', express.static(channelsDir, {
-      setHeaders: (res, fp) => {
-        if (fp.endsWith('.m3u')||fp.endsWith('.m3u8')) res.setHeader('Content-Type','application/x-mpegURL');
-        else if (fp.endsWith('.json')) res.setHeader('Content-Type','application/json; charset=utf-8');
-        else if (fp.endsWith('.md')) res.setHeader('Content-Type','text/markdown; charset=utf-8');
-        res.setHeader('Access-Control-Allow-Origin','*');
-      }
-    }));
-    mountIngestRoutes(app);
-    console.log('[ingest] routes mounted');
-  }
-} catch(e){ console.error('[ingest] wiring failed:', e && e.message || e); }
-// --- end auto-ingest wiring ---
-JS
-            fi
-          else
-            echo "backend/server.js not found; skipping"
-          fi
-
-      - name: Commit on new branch and open PR
+      - name: Open PR from new branch
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: feature/auto-ingest-indexes
-          title: "Auto-ingest, split & indexes (MAX_ITEMS_PER_FILE=1000)"
-          commit-message: "feat(ingest): add ingest service, routes, override compose, cron; default MAX_ITEMS_PER_FILE=1000"
+          branch: feature/ingest-skeleton
+          title: "Test: skeleton branch for auto-ingest"
+          commit-message: "chore: add ingest placeholder"
           signoff: true
           body: |
-            Adds:
-            - backend/services/{m3u.js,ingest.js}
-            - backend/controllers/ingest.js
-            - docker-compose.override.yml, crontab
-            - minimal wiring to backend/server.js
-            Env to set: PLAYLIST_URL, INGEST_TOKEN, (optional) PUBLIC_BASE_URL.
+            This is a smoke test to verify Actions can create a branch and PR.
