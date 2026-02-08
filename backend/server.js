@@ -105,4 +105,24 @@ io.on('connection', socket => {
   PlaylistSocketHandler(io, socket);
   ChatSocketHandler(io, socket);
 });
-``
+
+// --- auto-ingest wiring ---
+try {
+  const express = require('express');
+  const { mountIngestRoutes } = require('./controllers/ingest');
+  const channelsDir = process.env.CHANNELS_PATH || '/channels';
+  if (typeof app?.use === 'function') {
+    app.use('/channels', express.static(channelsDir, {
+      setHeaders: (res, fp) => {
+        if (fp.endsWith('.m3u')||fp.endsWith('.m3u8')) res.setHeader('Content-Type','application/x-mpegURL');
+        else if (fp.endsWith('.json')) res.setHeader('Content-Type','application/json; charset=utf-8');
+        else if (fp.endsWith('.md'))   res.setHeader('Content-Type','text/markdown; charset=utf-8');
+        res.setHeader('Access-Control-Allow-Origin','*');
+      }
+    }));
+    mountIngestRoutes(app);
+    console.log('[ingest] routes mounted');
+  }
+} catch(e){ console.error('[ingest] wiring failed:', e && e.message || e); }
+// --- end auto-ingest wiring ---
+
