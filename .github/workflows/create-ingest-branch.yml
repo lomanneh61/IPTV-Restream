@@ -1,0 +1,422 @@
+name: Create branch & push: auto-ingest-indexes
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create new files (services, controller, crontab)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backend/services backend/controllers
+
+          # backend/services/m3u.js
+          cat > backend/services/m3u.js <<'EOF'
+// backend/services/m3u.js
+const ATTR_RE = /([\w-]+)="([^"]*)"/g;
+
+function parseM3U(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const entries = [];
+  let cur = null;
+
+  for (const line of lines) {
+    if (line.startsWith('#EXTINF')) {
+      cur = { };
+      const attrs = {};
+      let m; while ((m = ATTR_RE.exec(line)) !== null) attrs[m[1]] = m[2];
+      cur['tvg-id'] = attrs['tvg-id'] || '';
+      cur['tvg-name'] = attrs['tvg-name'] || '';
+      cur['tvg-logo'] = attrs['tvg-logo'] || '';
+      cur['group-title'] = attrs['group-title'] || '';
+      cur['tvg-language'] = attrs['tvg-language'] || '';
+      cur['tvg-country'] = attrs['tvg-country'] || '';
+      const nameIdx = line.indexOf(',');
+      cur.name = nameIdx >= 0 ? line.slice(nameIdx + 1).trim() : 'Unknown';
+    } else if (!line.startsWith('#') && cur) {
+      cur.url = line;
+      entries.push(cur);
+      cur = null;
+    }
+  }
+  return entries;
+}
+module.exports = { parseM3U };
+EOF
+
+          # backend/services/ingest.js
+          cat > backend/services/ingest.js <<'EOF'
+// backend/services/ingest.js
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const https = require('https');
+const http = require('http');
+const { parseM3U } = require('./m3u');
+
+const CHANNELS_DIR = process.env.CHANNELS_PATH || '/channels';
+const PLAYLIST_URL = process.env.PLAYLIST_URL || '';
+const INGEST_README_TITLE = process.env.INGEST_README_TITLE || 'IPTV Index';
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/,'');
+const MAX_ITEMS_PER_FILE = parseInt(process.env.MAX_ITEMS_PER_FILE || '1000', 10) || 0;
+
+const VOD_MARKERS = (process.env.VOD_MARKERS || '(?i)\\bvod\\b, (?i)\\bmovie(s)?\\b, /movie/')
+  .split(',').map(s => s.trim()).filter(Boolean).map(p => new RegExp(p));
+const SERIES_MARKERS = (process.env.SERIES_MARKERS || '(?i)\\bseries\\b, (?i)S\\d{1,2}E\\d{1,2}, /series/')
+  .split(',').map(s => s.trim()).filter(Boolean).map(p => new RegExp(p));
+
+const STATE_FILE = path.join(CHANNELS_DIR, 'state.json');
+
+function ensureDir(d) { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); }
+function sha256(buf) { return crypto.createHash('sha256').update(buf).digest('hex'); }
+
+function httpGetBuffer(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith('https') ? https : http;
+    const req = mod.get(url, { headers }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return resolve(httpGetBuffer(res.headers.location, headers));
+      }
+      if (res.statusCode !== 200) return reject(new Error(`GET ${url} -> ${res.statusCode}`));
+      const chunks = [];
+      res.on('data', d => chunks.push(d));
+      res.on('end', () => resolve({ body: Buffer.concat(chunks), headers: res.headers }));
+    });
+    req.on('error', reject);
+  });
+}
+function httpHead(url, headers = {}) {
+  return new Promise((resolve) => {
+    const mod = url.startsWith('https') ? https : http;
+    const req = mod.request(url, { method: 'HEAD', headers }, res => resolve(res.headers || {}));
+    req.on('error', () => resolve({}));
+    req.end();
+  });
+}
+
+function loadState() { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8')); } catch { return {}; } }
+function saveState(s) { ensureDir(path.dirname(STATE_FILE)); fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2)); }
+
+async function shouldReingest() {
+  const st = loadState();
+  const head = await httpHead(PLAYLIST_URL);
+
+  const newEtag = head.etag;
+  const newLM = head['last-modified'];
+
+  if (newEtag && st.etag && newEtag === st.etag) return { changed: false, headers: head };
+  if (newLM && st.last_modified && newLM === st.last_modified) return { changed: false, headers: head };
+
+  const { body, headers } = await httpGetBuffer(PLAYLIST_URL);
+  const h = sha256(body);
+  if (st.sha256 && st.sha256 === h) return { changed: false, headers };
+  return { changed: true, headers, body, bodyHash: h };
+}
+
+function classify(entries) {
+  const live = [], vod = [], series = [];
+  for (const e of entries) {
+    const text = `${e.name} ${e['group-title']} ${e.url}`;
+    if (SERIES_MARKERS.some(rx => rx.test(text))) series.push(e);
+    else if (VOD_MARKERS.some(rx => rx.test(text))) vod.push(e);
+    else live.push(e);
+  }
+  return { live, vod, series };
+}
+
+function bucketize(entries, flags) {
+  const byGroup = !!flags.byGroup, byLang = !!flags.byLanguage, byCountry = !!flags.byCountry;
+  const buckets = new Map();
+  for (const e of entries) {
+    const k = [
+      byGroup ? (e['group-title'] || 'Unknown') : null,
+      byLang  ? (e['tvg-language'] || 'Unknown') : null,
+      byCountry ? (e['tvg-country'] || 'Unknown') : null
+    ].filter(Boolean).join(' | ') || 'all';
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(e);
+  }
+  const out = [];
+  for (const [name, items] of buckets) {
+    if (MAX_ITEMS_PER_FILE && items.length > MAX_ITEMS_PER_FILE) {
+      const chunks = Math.ceil(items.length / MAX_ITEMS_PER_FILE);
+      for (let i = 0; i < chunks; i++) {
+        const slice = items.slice(i * MAX_ITEMS_PER_FILE, (i + 1) * MAX_ITEMS_PER_FILE);
+        out.push([`${name} (${i + 1}/${chunks})`, slice]);
+      }
+    } else out.push([name, items]);
+  }
+  out.sort((a,b) => a[0].localeCompare(b[0]));
+  return out;
+}
+
+function toM3U(name, items) {
+  const lines = ['#EXTM3U'];
+  for (const e of items) {
+    const attrs = [];
+    if (e['tvg-id']) attrs.push(`tvg-id="${e['tvg-id']}"`);
+    if (e['tvg-name']) attrs.push(`tvg-name="${e['tvg-name']}"`);
+    if (e['tvg-logo']) attrs.push(`tvg-logo="${e['tvg-logo']}"`);
+    if (e['group-title']) attrs.push(`group-title="${e['group-title']}"`);
+    if (e['tvg-language']) attrs.push(`tvg-language="${e['tvg-language']}"`);
+    if (e['tvg-country']) attrs.push(`tvg-country="${e['tvg-country']}"`);
+    lines.push(`#EXTINF:-1 ${attrs.join(' ')},${e.name || 'Unknown'}`);
+    lines.push(e.url);
+  }
+  return lines.join('\n');
+}
+function safe(s) { return String(s).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g,''); }
+
+function writeSection(rootRel, items) {
+  const outMeta = [];
+  for (const [name, entries] of items) {
+    const fname = `${safe(name)}.m3u`;
+    const rel = path.join(rootRel, fname);
+    const abs = path.join(CHANNELS_DIR, rel);
+    ensureDir(path.dirname(abs));
+    fs.writeFileSync(abs, toM3U(name, entries), 'utf-8');
+    const jsonAbs = abs.replace(/\.m3u$/, '.json');
+    fs.writeFileSync(jsonAbs, JSON.stringify({ name, count: entries.length }, null, 2));
+    outMeta.push({ name, count: entries.length, relPath: rel });
+  }
+  return outMeta;
+}
+
+function buildIndex(sections) {
+  const now = new Date().toISOString();
+  const index = {
+    title: INGEST_README_TITLE,
+    description: "Nightly maintained indexes split by group/language/country with LIVE, VOD, SERIES.",
+    generated_at: now,
+    live: [], vod: [], series: []
+  };
+  const add = (list, section) => {
+    for (const i of list) {
+      const url = PUBLIC_BASE_URL ? `${PUBLIC_BASE_URL}/${i.relPath.replace(/\\/g,'/')}` : i.relPath;
+      const json = url.replace(/\.m3u$/, '.json');
+      index[section].push({ name: i.name, count: i.count, url, json });
+    }
+  };
+  add(sections.liveOut, 'live'); add(sections.vodOut, 'vod'); add(sections.seriesOut, 'series');
+
+  fs.writeFileSync(path.join(CHANNELS_DIR, 'index.json'), JSON.stringify(index, null, 2));
+  const readme = [
+    `# ${INGEST_README_TITLE}`, '', `Generated: \`${now}\``, '',
+    '## LIVE',   ...index.live.map(x => `- **${x.name}** — ${x.count}  \n  - M3U: ${x.url}\n  - JSON: ${x.json}`), '',
+    '## VOD',    ...index.vod.map(x => `- **${x.name}** — ${x.count}  \n  - M3U: ${x.url}\n  - JSON: ${x.json}`), '',
+    '## SERIES', ...index.series.map(x => `- **${x.name}** — ${x.count}  \n  - M3U: ${x.url}\n  - JSON: ${x.json}`), ''
+  ].join('\n');
+  fs.writeFileSync(path.join(CHANNELS_DIR, 'README.md'), readme, 'utf-8');
+}
+
+async function runIngest(force = false) {
+  if (!PLAYLIST_URL) throw new Error('PLAYLIST_URL is not configured');
+
+  let payload = null;
+  let head = {};
+  if (!force) {
+    const result = await shouldReingest();
+    if (!result.changed) return { status: 'noop', reason: 'not changed' };
+    payload = { body: result.body, headers: result.headers, hash: result.bodyHash };
+    head = result.headers || {};
+  } else {
+    const res = await httpGetBuffer(PLAYLIST_URL);
+    payload = { body: res.body, headers: res.headers, hash: sha256(res.body) };
+    head = res.headers || {};
+  }
+
+  const entries = parseM3U(payload.body.toString('utf-8'));
+  const { live, vod, series } = classify(entries);
+
+  const splitFlags = {
+    byGroup: process.env.SPLIT_BY_GROUP === 'true',
+    byLanguage: process.env.SPLIT_BY_LANGUAGE === 'true',
+    byCountry: process.env.SPLIT_BY_COUNTRY === 'true',
+  };
+
+  const liveBuckets   = bucketize(live, splitFlags);
+  const vodBuckets    = bucketize(vod, splitFlags);
+  const seriesBuckets = bucketize(series, splitFlags);
+
+  const liveOut   = writeSection('live', liveBuckets);
+  const vodOut    = writeSection('vod',  vodBuckets);
+  const seriesOut = writeSection('series', seriesBuckets);
+
+  buildIndex({ liveOut, vodOut, seriesOut });
+
+  const nextState = {
+    updated_at: new Date().toISOString(),
+    sha256: payload.hash,
+    etag: head.etag,
+    last_modified: head['last-modified'],
+    counts: { all: entries.length, live: live.length, vod: vod.length, series: series.length }
+  };
+  saveState(nextState);
+
+  return { status: 'ok', counts: nextState.counts, files: ['index.json','README.md'] };
+}
+
+module.exports = { runIngest };
+EOF
+
+          # backend/controllers/ingest.js
+          cat > backend/controllers/ingest.js <<'EOF'
+// backend/controllers/ingest.js
+const { runIngest } = require('../services/ingest');
+const fs = require('fs');
+const path = require('path');
+
+const CHANNELS_DIR = process.env.CHANNELS_PATH || '/channels';
+const TOKEN = process.env.INGEST_TOKEN || '';
+
+function auth(req) {
+  if (!TOKEN) return true; // allow in dev if not set
+  const hdr = req.headers['authorization'] || '';
+  if (!hdr.startsWith('Bearer ')) return false;
+  return hdr.split(' ',2)[1] === TOKEN;
+}
+
+function mountIngestRoutes(app) {
+  app.post('/api/ingest', async (req, res) => {
+    if (!auth(req)) return res.status(401).json({ error: 'Unauthorized' });
+    const force = String(req.query.force) === 'true';
+    try { res.json(await runIngest(force)); }
+    catch (e) { res.status(500).json({ error: String(e && e.message || e) }); }
+  });
+
+  app.get('/api/ingest/status', (req, res) => {
+    try {
+      const p = path.join(CHANNELS_DIR, 'state.json');
+      if (!fs.existsSync(p)) return res.json({ state: {} });
+      return res.json({ state: JSON.parse(fs.readFileSync(p, 'utf-8')) });
+    } catch {
+      return res.json({ state: {} });
+    }
+  });
+}
+
+module.exports = { mountIngestRoutes };
+EOF
+
+          # crontab for nightly ingest
+          cat > crontab <<'EOF'
+# Run nightly at 03:15 UTC
+15 3 * * * wget -qO- --header="Authorization: Bearer ${TOKEN}" --post-data="" http://backend:5000/api/ingest?force=false >/dev/null 2>&1
+EOF
+
+      - name: Add docker-compose.override.yml
+        shell: bash
+        run: |
+          cat > docker-compose.override.yml <<'EOF'
+version: "3.9"
+services:
+  backend:
+    volumes:
+      - channels:/channels
+    environment:
+      # ---- Ingest settings (defaults) ----
+      CHANNELS_PATH: /channels
+      INGEST_TOKEN: ${INGEST_TOKEN:-change-me}
+      PLAYLIST_URL: ${PLAYLIST_URL}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      SPLIT_BY_GROUP: "true"
+      SPLIT_BY_LANGUAGE: "true"
+      SPLIT_BY_COUNTRY: "true"
+      MAX_ITEMS_PER_FILE: "1000"
+      VOD_MARKERS: "(?i)\\bvod\\b, (?i)\\bmovie(s)?\\b, /movie/"
+      SERIES_MARKERS: "(?i)\\bseries\\b, (?i)S\\d{1,2}E\\d{1,2}, /series/"
+
+  nginx:
+    volumes:
+      - channels:/usr/share/nginx/html/channels:ro
+
+  cron:
+    image: alpine:3.20
+    depends_on: [ backend ]
+    environment:
+      TOKEN: ${INGEST_TOKEN:-change-me}
+    command: ["/bin/sh","-c","crond -f -l 8"]
+    volumes:
+      - ./crontab:/etc/crontabs/root:ro
+    networks: [ app-network ]
+
+volumes:
+  channels:
+EOF
+
+      - name: Wire backend/server.js (append safe block)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f backend/server.js ]; then
+            cp backend/server.js backend/server.js.bak
+            cat >> backend/server.js <<'EOF'
+
+// --- auto-ingest wiring (generated by workflow) ---
+try {
+  const express = require('express');
+  const { mountIngestRoutes } = require('./controllers/ingest');
+  const channelsDir = process.env.CHANNELS_PATH || '/channels';
+  if (typeof app?.use === 'function') {
+    app.use('/channels', express.static(channelsDir, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.m3u') || filePath.endsWith('.m3u8')) {
+          res.setHeader('Content-Type','application/x-mpegURL');
+        } else if (filePath.endsWith('.json')) {
+          res.setHeader('Content-Type','application/json; charset=utf-8');
+        } else if (filePath.endsWith('.md')) {
+          res.setHeader('Content-Type','text/markdown; charset=utf-8');
+        }
+        res.setHeader('Access-Control-Allow-Origin','*');
+      }
+    }));
+    mountIngestRoutes(app);
+    console.log('[ingest] routes mounted');
+  } else {
+    console.warn('[ingest] app.use is not available; skipping route mount');
+  }
+} catch (e) {
+  console.error('[ingest] wiring failed:', e && e.message || e);
+}
+// --- end auto-ingest wiring ---
+EOF
+          else
+            echo "backend/server.js not found; skipping append"
+          fi
+
+      - name: Commit on a new branch
+        shell: bash
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b feature/auto-ingest-indexes
+          git add -A
+          git commit -m "feat(ingest): automated ingest + change watcher + split + indexes (MAX_ITEMS_PER_FILE=1000)" || echo "No changes to commit"
+
+      - name: Open Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: feature/auto-ingest-indexes
+          title: "Automated ingest, splitting & indexes (MAX_ITEMS_PER_FILE=1000)"
+          body: |
+            This PR adds:
+            - backend/services/{m3u.js, ingest.js}
+            - backend/controllers/ingest.js
+            - docker-compose.override.yml (adds channels volume + cron sidecar)
+            - crontab (nightly 03:15 UTC)
+            - app wiring appended to backend/server.js for /channels + /api/ingest
+            Default MAX_ITEMS_PER_FILE=1000. Configure PLAYLIST_URL, INGEST_TOKEN in environment or .env.
+          draft: false
+          signoff: true
